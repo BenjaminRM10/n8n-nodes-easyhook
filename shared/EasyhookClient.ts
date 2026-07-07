@@ -27,13 +27,52 @@ export async function easyhookRequest(
     json: true,
   };
 
-  return await this.helpers.requestWithAuthentication.call(this, 'easyhookApi', options) as IDataObject;
+  try {
+    return await this.helpers.requestWithAuthentication.call(this, 'easyhookApi', options) as IDataObject;
+  } catch (error) {
+    throw new Error(formatEasyhookError(error));
+  }
 }
 
 function normalizeBaseUrl(value: string): string {
   const trimmed = value.trim() || 'https://api.easyhook.dev';
   const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   return withProtocol.replace(/\/+$/, '');
+}
+
+function formatEasyhookError(error: unknown): string {
+  if (!error || typeof error !== 'object') return String(error);
+  const record = error as Record<string, unknown>;
+  const response = readRecord(record.response);
+  const body = readRecordOrJson(response?.body) ?? readRecordOrJson(record.error) ?? readRecordOrJson(record.cause);
+  const statusCode = response?.statusCode ?? response?.status ?? record.statusCode ?? record.httpCode;
+  const code = readString(body?.error) ?? readString(body?.code) ?? readString(record.code);
+  const message = readString(body?.message) ?? readString(record.message);
+  const details = readString(body?.details) ?? readString(body?.description);
+  return [
+    statusCode ? `Easyhook API error ${statusCode}` : 'Easyhook API error',
+    code,
+    details ?? message,
+  ].filter(Boolean).join(': ');
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function readRecordOrJson(value: unknown): Record<string, unknown> | null {
+  const record = readRecord(value);
+  if (record) return record;
+  if (typeof value !== 'string') return null;
+  try {
+    return readRecord(JSON.parse(value));
+  } catch {
+    return null;
+  }
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
 }
 
 export function cleanObject(input: IDataObject): IDataObject {
