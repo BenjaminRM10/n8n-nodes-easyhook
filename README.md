@@ -79,9 +79,32 @@ Then send it:
 - Operation: `Send Template`
 - Template Source: `Choose From Easyhook`
 - Template: select one of the approved templates loaded from Easyhook
-- Template Variables: add header/body/button values visually
+- Template Variables: add values in the Header, Body, and Button sections. Add one row per template variable, in the same order as the approved template.
 
-For advanced cases you can still use `Manual JSON` and pass Easyhook-compatible template JSON.
+If the template is not listed yet, use `Template Source: Enter Manually`, then enter the template name and language code.
+
+### Send WhatsApp Flow
+
+- Resource: `Message`
+- Operation: `Send Flow`
+- From: your WhatsApp sender number
+- To: customer WhatsApp number
+- Flow Name: the Easyhook flow name
+- Message Body: the text above the flow button
+- Button Text: the flow button label
+- Flow Data: optional key/value fields sent as the flow payload
+
+### Webhook Automation
+
+Easyhook webhooks are handled with **Easyhook Trigger**. The trigger is not a polling node; it gives n8n a webhook URL. Create the subscription in Easyhook and choose the event scope there.
+
+Useful event scopes:
+
+- `message.*`: incoming WhatsApp/Messenger/Instagram messages
+- `status.*`: message delivery/read/failure status
+- `template.*`: template status changes
+- `flow.submission.*`: WhatsApp Flow responses
+- `media.*`: media lifecycle events, when enabled in Easyhook
 
 ## Development
 

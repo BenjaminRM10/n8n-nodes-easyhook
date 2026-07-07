@@ -269,7 +269,7 @@ export class Easyhook implements INodeType {
         type: 'options',
         options: [
           { name: 'Choose From Easyhook', value: 'list' },
-          { name: 'Manual JSON', value: 'json' },
+          { name: 'Enter Manually', value: 'manual' },
         ],
         default: 'list',
         displayOptions: {
@@ -299,16 +299,30 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: 'Template JSON',
-        name: 'templateJson',
-        type: 'json',
-        default: '{\n  "name": "order_ready",\n  "language": "es_MX"\n}',
+        displayName: 'Template Name',
+        name: 'templateName',
+        type: 'string',
+        default: '',
         required: true,
         displayOptions: {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
-            templateSource: ['json'],
+            templateSource: ['manual'],
+          },
+        },
+      },
+      {
+        displayName: 'Language',
+        name: 'templateLanguage',
+        type: 'string',
+        default: 'es_MX',
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendTemplate'],
+            templateSource: ['manual'],
           },
         },
       },
@@ -317,67 +331,51 @@ export class Easyhook implements INodeType {
         name: 'templateVariables',
         type: 'fixedCollection',
         typeOptions: {
-          multipleValues: false,
+          multipleValues: true,
         },
         default: {},
-        placeholder: 'Add Variables',
+        placeholder: 'Add Variable',
         options: [
           {
-            displayName: 'Header Variables',
+            displayName: 'Header Variable',
             name: 'header',
             values: [
               {
-                displayName: 'Values',
-                name: 'values',
+                displayName: 'Value',
+                name: 'value',
                 type: 'string',
                 default: '',
-                placeholder: 'value1, value2',
-                description: 'Comma-separated values for header variables.',
+                description: 'One header variable value.',
               },
             ],
           },
           {
-            displayName: 'Body Variables',
+            displayName: 'Body Variable',
             name: 'body',
             values: [
               {
-                displayName: 'Values',
-                name: 'values',
+                displayName: 'Value',
+                name: 'value',
                 type: 'string',
                 default: '',
-                placeholder: 'Benjamin, 3:00 PM',
-                description: 'Comma-separated values for body variables.',
+                description: 'One body variable value, in template order.',
               },
             ],
           },
           {
-            displayName: 'Button Variables',
+            displayName: 'Button Variable',
             name: 'button',
             values: [
               {
-                displayName: 'Values',
-                name: 'values',
+                displayName: 'Value',
+                name: 'value',
                 type: 'string',
                 default: '',
-                placeholder: 'tracking-code',
-                description: 'Comma-separated values for button variables.',
+                description: 'One button variable value.',
               },
             ],
           },
         ],
-        displayOptions: {
-          show: {
-            resource: ['message'],
-            operation: ['sendTemplate'],
-          },
-        },
-      },
-      {
-        displayName: 'Parameters JSON',
-        name: 'parametersJson',
-        type: 'json',
-        default: '{}',
-        description: 'Optional advanced Easyhook parameters object. Values here are merged with Template Variables.',
         displayOptions: {
           show: {
             resource: ['message'],
@@ -425,11 +423,35 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: 'Flow Payload JSON',
-        name: 'flowPayloadJson',
-        type: 'json',
-        default: '{}',
-        description: 'Optional data sent to the Flow.',
+        displayName: 'Flow Data',
+        name: 'flowData',
+        type: 'fixedCollection',
+        typeOptions: {
+          multipleValues: true,
+        },
+        default: {},
+        placeholder: 'Add Field',
+        options: [
+          {
+            displayName: 'Field',
+            name: 'field',
+            values: [
+              {
+                displayName: 'Name',
+                name: 'name',
+                type: 'string',
+                default: '',
+              },
+              {
+                displayName: 'Value',
+                name: 'value',
+                type: 'string',
+                default: '',
+              },
+            ],
+          },
+        ],
+        description: 'Optional data sent to the Flow as key/value pairs.',
         displayOptions: {
           show: {
             resource: ['message'],
@@ -653,16 +675,18 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
   if (operation === 'sendTemplate') {
     const at = this.getNodeParameter('at', itemIndex, '') as string;
     const templateSource = this.getNodeParameter('templateSource', itemIndex, 'list') as string;
-    const template = templateSource === 'json'
-      ? parseJsonParameter.call(this, 'templateJson', itemIndex)
+    const template = templateSource === 'manual'
+      ? {
+        name: this.getNodeParameter('templateName', itemIndex) as string,
+        language: this.getNodeParameter('templateLanguage', itemIndex) as string,
+      }
       : parseTemplateSelection(this.getNodeParameter('templateSelection', itemIndex) as string);
-    const advancedParameters = parseJsonParameter.call(this, 'parametersJson', itemIndex, {});
     const visualParameters = buildTemplateParameters(this.getNodeParameter('templateVariables', itemIndex, {}) as IDataObject);
     return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
       from,
       to,
       template,
-      parameters: cleanObject({ ...visualParameters, ...advancedParameters }),
+      parameters: visualParameters,
       at,
     }));
   }
@@ -674,7 +698,7 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
       flow_name: this.getNodeParameter('flowName', itemIndex) as string,
       body: this.getNodeParameter('flowBody', itemIndex) as string,
       cta: this.getNodeParameter('flowCta', itemIndex) as string,
-      payload: parseJsonParameter.call(this, 'flowPayloadJson', itemIndex, {}),
+      payload: buildKeyValueObject(this.getNodeParameter('flowData', itemIndex, {}) as IDataObject),
     }));
   }
 
@@ -733,16 +757,6 @@ async function executeScheduledMessageOperation(this: IExecuteFunctions, operati
   throw new NodeOperationError(this.getNode(), `Unsupported scheduled message operation: ${operation}`, { itemIndex });
 }
 
-function parseJsonParameter(this: IExecuteFunctions, name: string, itemIndex: number, fallback?: IDataObject): IDataObject {
-  const value = this.getNodeParameter(name, itemIndex, fallback ?? {}) as IDataObject | string;
-  if (typeof value !== 'string') return value;
-  try {
-    return JSON.parse(value) as IDataObject;
-  } catch (error) {
-    throw new NodeOperationError(this.getNode(), `${name} must be valid JSON`, { itemIndex });
-  }
-}
-
 function parseTemplateSelection(value: string): IDataObject {
   try {
     return JSON.parse(value) as IDataObject;
@@ -753,27 +767,38 @@ function parseTemplateSelection(value: string): IDataObject {
 
 function buildTemplateParameters(input: IDataObject): IDataObject {
   const output: IDataObject = {};
-  const header = readCommaValues(readNestedString(input, 'header', 'values'));
-  const body = readCommaValues(readNestedString(input, 'body', 'values'));
-  const button = readCommaValues(readNestedString(input, 'button', 'values'));
+  const header = readCollectionValues(input, 'header');
+  const body = readCollectionValues(input, 'body');
+  const button = readCollectionValues(input, 'button');
   if (header.length) output.header = header;
   if (body.length) output.body = body;
   if (button.length) output.button = button;
   return output;
 }
 
-function readNestedString(input: IDataObject, section: string, field: string): string | null {
-  const value = input[section];
-  if (!Array.isArray(value)) return null;
-  const first = value[0];
-  if (!first || typeof first !== 'object' || Array.isArray(first)) return null;
-  const raw = (first as IDataObject)[field];
-  return typeof raw === 'string' ? raw : null;
+function buildKeyValueObject(input: IDataObject): IDataObject {
+  const output: IDataObject = {};
+  const fields = input.field;
+  if (!Array.isArray(fields)) return output;
+  for (const field of fields) {
+    if (!field || typeof field !== 'object' || Array.isArray(field)) continue;
+    const name = (field as IDataObject).name;
+    if (typeof name !== 'string' || !name.trim()) continue;
+    output[name.trim()] = (field as IDataObject).value ?? '';
+  }
+  return output;
 }
 
-function readCommaValues(value: string | null): string[] {
-  if (!value) return [];
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
+function readCollectionValues(input: IDataObject, section: string): string[] {
+  const value = input[section];
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return '';
+      const raw = (item as IDataObject).value;
+      return typeof raw === 'string' ? raw.trim() : '';
+    })
+    .filter(Boolean);
 }
 
 function readTemplateString(template: IDataObject, key: string): string {
