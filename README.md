@@ -88,11 +88,12 @@ Then send it:
 
 - Resource: `Message`
 - Operation: `Send Template`
-- Template Source: `Choose From Easyhook`
-- Template: select one of the approved templates loaded from Easyhook
-- Template Variables: n8n loads the variables from the selected Easyhook template and shows them as fields, for example `BODY {{1}}` or `HEADER {{customer_name}}`.
+- Template Source: `Enter Manually`
+- Template Name: the approved template name in Easyhook/Meta
+- Language: the template language code, for example `es_MX` or `en_US`
+- Template Variables: add Header, Body, or Button variables in template order. Body row 1 fills `{{1}}`, row 2 fills `{{2}}`, and so on.
 
-If the template is not listed yet, use `Template Source: Enter Manually`, then enter the template name and language code. Manual mode uses repeatable Header, Body, and Button variable rows.
+If your n8n instance can reach Easyhook for dynamic options, you can switch `Template Source` to `Choose From Easyhook`. That mode loads approved templates and exposes variable fields automatically.
 
 ### Send WhatsApp Flow
 

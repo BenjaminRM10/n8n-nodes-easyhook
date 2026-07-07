@@ -187,6 +187,9 @@ export class Easyhook implements INodeType {
             resource: ['message'],
             operation: ['sendText', 'sendMedia', 'sendTemplate'],
           },
+          hide: {
+            humanizedDelivery: [true],
+          },
         },
       },
       {
@@ -298,10 +301,11 @@ export class Easyhook implements INodeType {
         name: 'templateSource',
         type: 'options',
         options: [
-          { name: 'Choose From Easyhook', value: 'list' },
           { name: 'Enter Manually', value: 'manual' },
+          { name: 'Choose From Easyhook', value: 'list' },
         ],
-        default: 'list',
+        default: 'manual',
+        description: 'Manual mode is the most reliable option. Choose From Easyhook loads approved templates and variables when your n8n instance can reach Easyhook.',
         displayOptions: {
           show: {
             resource: ['message'],
