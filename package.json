@@ -1,0 +1,53 @@
+{
+  "name": "n8n-nodes-easyhook",
+  "version": "0.1.0",
+  "description": "n8n community nodes for Easyhook WhatsApp and messaging APIs.",
+  "license": "MIT",
+  "homepage": "https://easyhook.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BenjaminRM10/easyhook.git",
+    "directory": "packages/n8n-nodes-easyhook"
+  },
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "easyhook",
+    "whatsapp",
+    "messaging",
+    "automation"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "n8n-node build",
+    "dev": "n8n-node dev",
+    "lint": "n8n-node lint",
+    "lint:fix": "n8n-node lint --fix",
+    "release": "n8n-node release",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@n8n/node-cli": "^0.38.6",
+    "@types/node": "^25.9.1",
+    "n8n-workflow": "^2.0.3",
+    "typescript": "^6.0.3"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/EasyhookApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Easyhook/Easyhook.node.js"
+    ]
+  }
+}
