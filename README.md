@@ -79,9 +79,9 @@ Then send it:
 - Operation: `Send Template`
 - Template Source: `Choose From Easyhook`
 - Template: select one of the approved templates loaded from Easyhook
-- Template Variables: add values in the Header, Body, and Button sections. Add one row per template variable, in the same order as the approved template.
+- Template Variables: n8n loads the variables from the selected Easyhook template and shows them as fields, for example `BODY {{1}}` or `HEADER {{customer_name}}`.
 
-If the template is not listed yet, use `Template Source: Enter Manually`, then enter the template name and language code.
+If the template is not listed yet, use `Template Source: Enter Manually`, then enter the template name and language code. Manual mode uses repeatable Header, Body, and Button variable rows.
 
 ### Send WhatsApp Flow
 

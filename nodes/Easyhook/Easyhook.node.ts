@@ -6,6 +6,7 @@ import type {
   INodePropertyOptions,
   INodeType,
   INodeTypeDescription,
+  ResourceMapperFields,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { cleanObject, easyhookRequest, readArray } from '../../shared/EasyhookClient';
@@ -328,6 +329,39 @@ export class Easyhook implements INodeType {
       },
       {
         displayName: 'Template Variables',
+        name: 'templateVariableMapping',
+        type: 'resourceMapper',
+        noDataExpression: true,
+        default: {
+          mappingMode: 'defineBelow',
+          value: null,
+        },
+        required: false,
+        typeOptions: {
+          loadOptionsDependsOn: ['from', 'templateSelection'],
+          resourceMapper: {
+            resourceMapperMethod: 'getTemplateVariables',
+            mode: 'add',
+            valuesLabel: 'Template Values',
+            fieldWords: {
+              singular: 'variable',
+              plural: 'variables',
+            },
+            addAllFields: true,
+            supportAutoMap: false,
+            noFieldsError: 'This template does not expose any text variables.',
+          },
+        },
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendTemplate'],
+            templateSource: ['list'],
+          },
+        },
+      },
+      {
+        displayName: 'Template Variables',
         name: 'templateVariables',
         type: 'fixedCollection',
         typeOptions: {
@@ -380,6 +414,7 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
+            templateSource: ['manual'],
           },
         },
       },
@@ -611,6 +646,23 @@ export class Easyhook implements INodeType {
         }).filter((option) => option.name && option.value);
       },
     },
+    resourceMapping: {
+      async getTemplateVariables(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
+        const from = this.getCurrentNodeParameter('from') as string | undefined;
+        const rawSelection = this.getCurrentNodeParameter('templateSelection') as string | undefined;
+        if (!from || !rawSelection) return { fields: [] };
+
+        const selected = parseTemplateSelection(rawSelection);
+        const response = await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
+        const templates = readArray(response, 'templates');
+        const template = templates.find((item) => templateMatchesSelection(item, selected));
+        if (!template) return { fields: [], emptyFieldsNotice: 'Select a template to load its variables.' };
+
+        return {
+          fields: extractTemplateVariableFields(template.components),
+        };
+      },
+    },
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -681,6 +733,16 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
         language: this.getNodeParameter('templateLanguage', itemIndex) as string,
       }
       : parseTemplateSelection(this.getNodeParameter('templateSelection', itemIndex) as string);
+    if (templateSource === 'list') {
+      const mappedVariables = this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject;
+      return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
+        from,
+        to,
+        template,
+        components: buildTemplateComponentsFromMapper(mappedVariables),
+        at,
+      }));
+    }
     const visualParameters = buildTemplateParameters(this.getNodeParameter('templateVariables', itemIndex, {}) as IDataObject);
     return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
       from,
@@ -765,6 +827,122 @@ function parseTemplateSelection(value: string): IDataObject {
   }
 }
 
+function templateMatchesSelection(template: IDataObject, selected: IDataObject): boolean {
+  const selectedName = readTemplateString(selected, 'name');
+  const selectedLanguage = readTemplateLanguage(selected);
+  if (!selectedName) return false;
+  const name = readTemplateString(template, 'name');
+  const language = readTemplateLanguage(template) || readTemplateString(template, 'lang');
+  return name === selectedName && (!selectedLanguage || language === selectedLanguage);
+}
+
+function extractTemplateVariableFields(components: unknown): ResourceMapperFields['fields'] {
+  if (!Array.isArray(components)) return [];
+  const fields: ResourceMapperFields['fields'] = [];
+  for (const component of components) {
+    if (!isRecord(component)) continue;
+    const type = String(component.type ?? '').toUpperCase();
+    if (type === 'HEADER' || type === 'BODY') {
+      const section = type.toLowerCase();
+      const text = typeof component.text === 'string' ? component.text : '';
+      for (const placeholder of extractPlaceholders(text)) {
+        fields.push(templateVariableField(`${section}.${placeholder}`, `${type} {{${placeholder}}}`));
+      }
+    }
+    if (type === 'BUTTONS' && Array.isArray(component.buttons)) {
+      component.buttons.forEach((button, index) => {
+        if (!isRecord(button)) return;
+        const buttonType = String(button.type ?? 'url').toLowerCase();
+        const source = [button.text, button.url].filter((value): value is string => typeof value === 'string').join(' ');
+        for (const placeholder of extractPlaceholders(source)) {
+          fields.push(templateVariableField(`button.${index}.${buttonType}.${placeholder}`, `Button ${index + 1} {{${placeholder}}}`));
+        }
+      });
+    }
+  }
+  return fields;
+}
+
+function templateVariableField(id: string, displayName: string): ResourceMapperFields['fields'][number] {
+  return {
+    id,
+    displayName,
+    required: true,
+    defaultMatch: false,
+    canBeUsedToMatch: false,
+    display: true,
+    type: 'string',
+  };
+}
+
+function extractPlaceholders(value: string): string[] {
+  const seen = new Set<string>();
+  const matches = value.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g);
+  for (const match of matches) {
+    if (match[1]) seen.add(match[1]);
+  }
+  return [...seen].sort((a, b) => parameterSortKey(a).localeCompare(parameterSortKey(b)));
+}
+
+function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
+  const sections: Record<'header' | 'body', Record<string, string>> = { header: {}, body: {} };
+  const buttons = new Map<string, { index: string; subType: string; values: Record<string, string> }>();
+
+  for (const [key, rawValue] of Object.entries(input)) {
+    if (!['string', 'number', 'boolean'].includes(typeof rawValue)) continue;
+    const value = String(rawValue);
+    if (!value) continue;
+    const parts = key.split('.');
+    const section = parts[0];
+    if ((section === 'header' || section === 'body') && parts[1]) {
+      sections[section][parts.slice(1).join('.')] = value;
+      continue;
+    }
+    if (section === 'button' && parts.length >= 4) {
+      const [, index, subType, ...placeholderParts] = parts;
+      const placeholder = placeholderParts.join('.');
+      const buttonKey = `${index}.${subType}`;
+      const current = buttons.get(buttonKey) ?? { index, subType, values: {} };
+      current.values[placeholder] = value;
+      buttons.set(buttonKey, current);
+    }
+  }
+
+  const components: IDataObject[] = [];
+  const header = buildTextComponentFromNamedValues('header', sections.header);
+  const body = buildTextComponentFromNamedValues('body', sections.body);
+  if (header) components.push(header);
+  if (body) components.push(body);
+
+  for (const button of [...buttons.values()].sort((a, b) => Number(a.index) - Number(b.index))) {
+    const parameters = buildTextParametersFromNamedValues(button.values);
+    if (parameters.length === 0) continue;
+    components.push({
+      type: 'button',
+      sub_type: button.subType,
+      index: button.index,
+      parameters,
+    });
+  }
+
+  return components;
+}
+
+function buildTextComponentFromNamedValues(type: 'header' | 'body', values: Record<string, string>): IDataObject | null {
+  const parameters = buildTextParametersFromNamedValues(values);
+  return parameters.length ? { type, parameters } : null;
+}
+
+function buildTextParametersFromNamedValues(values: Record<string, string>): IDataObject[] {
+  return Object.entries(values)
+    .sort(([a], [b]) => parameterSortKey(a).localeCompare(parameterSortKey(b)))
+    .map(([key, value]) => cleanObject({
+      type: 'text',
+      text: value,
+      parameter_name: /^\d+$/.test(key) ? undefined : key,
+    }));
+}
+
 function buildTemplateParameters(input: IDataObject): IDataObject {
   const output: IDataObject = {};
   const header = readCollectionValues(input, 'header');
@@ -774,6 +952,14 @@ function buildTemplateParameters(input: IDataObject): IDataObject {
   if (body.length) output.body = body;
   if (button.length) output.button = button;
   return output;
+}
+
+function parameterSortKey(value: string): string {
+  return /^\d+$/.test(value) ? value.padStart(6, '0') : `z_${value}`;
+}
+
+function isRecord(value: unknown): value is IDataObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function buildKeyValueObject(input: IDataObject): IDataObject {
