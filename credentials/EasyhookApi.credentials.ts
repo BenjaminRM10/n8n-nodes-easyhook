@@ -1,5 +1,6 @@
 import type {
   IAuthenticateGeneric,
+  ICredentialTestRequest,
   ICredentialType,
   INodeProperties,
 } from 'n8n-workflow';
@@ -40,4 +41,11 @@ export class EasyhookApi implements ICredentialType {
     },
   };
 
+  test: ICredentialTestRequest = {
+    request: {
+      baseURL: '={{$credentials.baseUrl}}',
+      url: '/v1/me',
+      method: 'GET',
+    },
+  };
 }

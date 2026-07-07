@@ -27,6 +27,8 @@ Create an **Easyhook API** credential:
 - API Key: your `eh_live_...` key from Easyhook
 - API Base URL: `https://api.easyhook.dev`
 
+n8n validates the credential with `GET /v1/me`, so no WhatsApp number is needed just to test the API key.
+
 ## Common Examples
 
 ### Send Text
