@@ -104,7 +104,14 @@ Useful event scopes:
 - `status.*`: message delivery/read/failure status
 - `template.*`: template status changes
 - `flow.submission.*`: WhatsApp Flow responses
+- `smb_message_echo.*`: WhatsApp Business App coexistence message echoes
+- `smb_app_state_sync.*`: WhatsApp Business App coexistence contact/app state sync
+- `history.*`: coexistence history sync events
+- `account_update.*`: WhatsApp account updates
 - `media.*`: media lifecycle events, when enabled in Easyhook
+- `message.text`, `message.image`, `status.failed`: narrower event filters matching the Easyhook portal
+
+Messenger and Instagram hooks are configured in the Easyhook portal with the provider filter. In n8n you can also label a trigger as `messenger.message.*` or `instagram.message.*` for workflow clarity.
 
 ## Development
 

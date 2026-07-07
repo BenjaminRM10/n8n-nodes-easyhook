@@ -9,8 +9,18 @@ import type {
 
 const eventOptions = [
   { name: 'All Events', value: '*' },
+  { name: 'Account Updates', value: 'account_update.*' },
+  { name: 'Coexistence App State', value: 'smb_app_state_sync.*' },
+  { name: 'Coexistence Message Echoes', value: 'smb_message_echo.*' },
   { name: 'Flow Submissions', value: 'flow.submission.*' },
+  { name: 'History Sync', value: 'history.*' },
+  { name: 'Instagram Messages', value: 'instagram.message.*' },
+  { name: 'Media Events', value: 'media.*' },
   { name: 'Messages', value: 'message.*' },
+  { name: 'Messages: Images', value: 'message.image' },
+  { name: 'Messages: Text', value: 'message.text' },
+  { name: 'Messenger Messages', value: 'messenger.message.*' },
+  { name: 'Status: Failed', value: 'status.failed' },
   { name: 'Status Updates', value: 'status.*' },
   { name: 'Template Updates', value: 'template.*' },
 ];
@@ -19,7 +29,7 @@ export class EasyhookTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Easyhook Trigger',
     name: 'easyhookTrigger',
-    icon: 'file:easyhook.svg',
+    icon: 'file:easyhook.png',
     group: ['trigger'],
     version: 1,
     description: 'Starts a workflow when Easyhook sends a webhook event',
@@ -51,7 +61,7 @@ export class EasyhookTrigger implements INodeType {
         type: 'multiOptions',
         options: eventOptions,
         default: ['*'],
-        description: 'Documentation-only filter for this workflow. Configure the real event filter in the Easyhook portal subscription.',
+        description: 'Documentation-only filter for this workflow. Configure the real provider, scope, and event filter in the Easyhook portal subscription.',
       },
       {
         displayName: 'Include Headers',

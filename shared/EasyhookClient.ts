@@ -17,15 +17,23 @@ export async function easyhookRequest(
   body?: IDataObject,
   qs?: IDataObject,
 ): Promise<IDataObject> {
+  const credentials = await this.getCredentials('easyhookApi');
+  const baseUrl = normalizeBaseUrl(typeof credentials.baseUrl === 'string' ? credentials.baseUrl : 'https://api.easyhook.dev');
   const options: IRequestOptions = {
     method,
-    uri: endpoint,
+    uri: `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`,
     qs,
     body,
     json: true,
   };
 
   return await this.helpers.requestWithAuthentication.call(this, 'easyhookApi', options) as IDataObject;
+}
+
+function normalizeBaseUrl(value: string): string {
+  const trimmed = value.trim() || 'https://api.easyhook.dev';
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withProtocol.replace(/\/+$/, '');
 }
 
 export function cleanObject(input: IDataObject): IDataObject {
