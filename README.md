@@ -4,7 +4,7 @@ Community node for using Easyhook from n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
-- Send WhatsApp text, media, templates, and Flows
+- Send WhatsApp text, humanized text, read receipts, typing indicators, media, templates, and Flows
 - Schedule messages with Easyhook's `at` parameter
 - Upload reusable media and send it later by `media_name`
 - List/sync templates and media
@@ -52,6 +52,15 @@ The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional
 - From: `5218661479075`
 - To: `5215660069997`
 - Body: `Hello from n8n`
+
+Turn on **Humanized Delivery** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
+
+### Send Read Or Typing
+
+- Resource: `Message`
+- Operation: `Send Read Receipt` or `Send Typing Indicator`
+- From: your WhatsApp sender number
+- Inbound Message ID: the inbound WhatsApp `wamid`
 
 ### Send Reusable Media
 

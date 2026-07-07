@@ -11,7 +11,8 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 import { cleanObject, easyhookRequest, readArray } from '../../shared/EasyhookClient';
 
-const messageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow'];
+const messageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow', 'sendRead', 'sendTyping'];
+const recipientMessageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow'];
 
 export class Easyhook implements INodeType {
   description: INodeTypeDescription = {
@@ -61,10 +62,12 @@ export class Easyhook implements INodeType {
         noDataExpression: true,
         displayOptions: { show: { resource: ['message'] } },
         options: [
+          { name: 'Send Read Receipt', value: 'sendRead', action: 'Mark a WhatsApp message as read' },
           { name: 'Send Flow', value: 'sendFlow', action: 'Send a WhatsApp Flow' },
           { name: 'Send Media', value: 'sendMedia', action: 'Send media' },
           { name: 'Send Template', value: 'sendTemplate', action: 'Send a WhatsApp template' },
           { name: 'Send Text', value: 'sendText', action: 'Send a text message' },
+          { name: 'Send Typing Indicator', value: 'sendTyping', action: 'Show WhatsApp typing indicator' },
         ],
         default: 'sendText',
       },
@@ -128,7 +131,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ['message'],
-            operation: messageOperations,
+            operation: recipientMessageOperations,
           },
         },
       },
@@ -143,6 +146,32 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendText'],
+          },
+        },
+      },
+      {
+        displayName: 'Humanized Delivery',
+        name: 'humanizedDelivery',
+        type: 'boolean',
+        default: false,
+        description: 'Mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text.',
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendText'],
+          },
+        },
+      },
+      {
+        displayName: 'Inbound Message ID',
+        name: 'messageId',
+        type: 'string',
+        default: '',
+        description: 'Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.',
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendText', 'sendRead', 'sendTyping'],
           },
         },
       },
@@ -703,15 +732,21 @@ async function executeOperation(this: IExecuteFunctions, resource: string, opera
 
 async function executeMessageOperation(this: IExecuteFunctions, operation: string, itemIndex: number): Promise<IDataObject> {
   const from = this.getNodeParameter('from', itemIndex) as string;
-  const to = this.getNodeParameter('to', itemIndex) as string;
 
   if (operation === 'sendText') {
+    const to = this.getNodeParameter('to', itemIndex) as string;
     const body = this.getNodeParameter('body', itemIndex) as string;
+    const humanizedDelivery = this.getNodeParameter('humanizedDelivery', itemIndex, false) as boolean;
+    const messageId = this.getNodeParameter('messageId', itemIndex, '') as string;
+    if (humanizedDelivery) {
+      return easyhookRequest.call(this, 'POST', '/v1/messages/humanized-text', cleanObject({ from, to, body, message_id: messageId }));
+    }
     const at = this.getNodeParameter('at', itemIndex, '') as string;
     return easyhookRequest.call(this, 'POST', '/v1/messages/text', cleanObject({ from, to, body, at }));
   }
 
   if (operation === 'sendMedia') {
+    const to = this.getNodeParameter('to', itemIndex) as string;
     const type = this.getNodeParameter('mediaType', itemIndex) as string;
     const referenceType = this.getNodeParameter('mediaReferenceType', itemIndex) as string;
     const caption = this.getNodeParameter('caption', itemIndex, '') as string;
@@ -725,6 +760,7 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
   }
 
   if (operation === 'sendTemplate') {
+    const to = this.getNodeParameter('to', itemIndex) as string;
     const at = this.getNodeParameter('at', itemIndex, '') as string;
     const templateSource = this.getNodeParameter('templateSource', itemIndex, 'list') as string;
     const template = templateSource === 'manual'
@@ -754,6 +790,7 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
   }
 
   if (operation === 'sendFlow') {
+    const to = this.getNodeParameter('to', itemIndex) as string;
     return easyhookRequest.call(this, 'POST', '/v1/messages/flow', cleanObject({
       from,
       to,
@@ -762,6 +799,16 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
       cta: this.getNodeParameter('flowCta', itemIndex) as string,
       payload: buildKeyValueObject(this.getNodeParameter('flowData', itemIndex, {}) as IDataObject),
     }));
+  }
+
+  if (operation === 'sendRead') {
+    const messageId = this.getNodeParameter('messageId', itemIndex) as string;
+    return easyhookRequest.call(this, 'POST', '/v1/messages/read', cleanObject({ from, message_id: messageId }));
+  }
+
+  if (operation === 'sendTyping') {
+    const messageId = this.getNodeParameter('messageId', itemIndex) as string;
+    return easyhookRequest.call(this, 'POST', '/v1/messages/typing', cleanObject({ from, message_id: messageId }));
   }
 
   throw new NodeOperationError(this.getNode(), `Unsupported message operation: ${operation}`, { itemIndex });

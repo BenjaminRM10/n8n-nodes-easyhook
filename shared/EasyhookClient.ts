@@ -37,7 +37,7 @@ export async function easyhookRequest(
 function normalizeBaseUrl(value: string): string {
   const trimmed = value.trim() || 'https://api.easyhook.dev';
   const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  return withProtocol.replace(/\/+$/, '');
+  return withProtocol.replace(/\/+$/, '').replace(/\/v1$/i, '');
 }
 
 function formatEasyhookError(error: unknown): string {
