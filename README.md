@@ -39,7 +39,9 @@ Use **Easyhook Trigger** as the first node in a workflow.
 1. Add the Easyhook Trigger node.
 2. Copy the Production URL from n8n.
 3. In the Easyhook portal, create an easyhook subscription and paste that URL.
-4. Choose the Easyhook scope/events in the portal, for example `message.*`, `status.*`, `template.*`, or `flow.submission.*`.
+4. Keep the portal auth type as `bearer` unless you need something else.
+5. Copy the generated Easyhook secret into the trigger's **Bearer Secret** field.
+6. Choose the Easyhook scope/events in the portal, for example `message.*`, `status.*`, `template.*`, or `flow.submission.*`.
 
 The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional headers/query if enabled.
 
@@ -97,6 +99,13 @@ If the template is not listed yet, use `Template Source: Enter Manually`, then e
 ### Webhook Automation
 
 Easyhook webhooks are handled with **Easyhook Trigger**. The trigger is not a polling node; it gives n8n a webhook URL. Create the subscription in Easyhook and choose the event scope there.
+
+Security options:
+
+- `Bearer Secret`: recommended for n8n. Easyhook sends `Authorization: Bearer <secret>`.
+- `Custom Header Secret`: validates the configured header name and secret.
+- `HMAC Signature`: validates `X-Easyhook-Signature: sha256=<hex>` using the raw request body when n8n exposes it.
+- `No Auth`: temporary tests only.
 
 Useful event scopes:
 
