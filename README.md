@@ -9,6 +9,7 @@ Easyhook is a lightweight messaging API for WhatsApp Business Platform and other
 - Upload reusable media and send it later by `media_name`
 - List/sync templates and media
 - Cancel scheduled messages
+- Receive Easyhook webhook events in n8n with the Easyhook Trigger node
 
 ## Install
 
@@ -30,6 +31,17 @@ Create an **Easyhook API** credential:
 n8n validates the credential with `GET /v1/me`, so no WhatsApp number is needed just to test the API key.
 
 ## Common Examples
+
+### Receive Webhooks
+
+Use **Easyhook Trigger** as the first node in a workflow.
+
+1. Add the Easyhook Trigger node.
+2. Copy the Production URL from n8n.
+3. In the Easyhook portal, create an easyhook subscription and paste that URL.
+4. Choose the Easyhook scope/events in the portal, for example `message.*`, `status.*`, `template.*`, or `flow.submission.*`.
+
+The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional headers/query if enabled.
 
 ### Send Text
 
@@ -65,22 +77,11 @@ Then send it:
 
 - Resource: `Message`
 - Operation: `Send Template`
-- Template JSON:
+- Template Source: `Choose From Easyhook`
+- Template: select one of the approved templates loaded from Easyhook
+- Template Variables: add header/body/button values visually
 
-```json
-{
-  "name": "order_ready",
-  "language": "es_MX"
-}
-```
-
-Optional Parameters JSON:
-
-```json
-{
-  "body": ["Benjamin"]
-}
-```
+For advanced cases you can still use `Manual JSON` and pass Easyhook-compatible template JSON.
 
 ## Development
 

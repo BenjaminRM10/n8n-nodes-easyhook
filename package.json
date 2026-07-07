@@ -47,7 +47,8 @@
       "dist/credentials/EasyhookApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/Easyhook/Easyhook.node.js"
+      "dist/nodes/Easyhook/Easyhook.node.js",
+      "dist/nodes/EasyhookTrigger/EasyhookTrigger.node.js"
     ]
   }
 }
