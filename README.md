@@ -37,11 +37,11 @@ n8n validates the credential with `GET /v1/me`, so no WhatsApp number is needed 
 Use **Easyhook Trigger** as the first node in a workflow.
 
 1. Add the Easyhook Trigger node.
-2. Copy the Production URL from n8n.
-3. In the Easyhook portal, create an easyhook subscription and paste that URL.
-4. Keep the portal auth type as `bearer` unless you need something else.
-5. Copy the generated Easyhook secret into the trigger's **Bearer Secret** field.
-6. Choose the Easyhook scope/events in the portal, for example `message.*`, `status.*`, `template.*`, or `flow.submission.*`.
+2. Select your Easyhook API credential.
+3. Choose providers, scope, and events.
+4. Activate the workflow.
+
+n8n registers its Production URL in Easyhook automatically and stores the HMAC signing secret in the workflow's private static data. Deactivating or deleting the workflow removes the Easyhook subscription. No portal setup or secret copy/paste is required.
 
 The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional headers/query if enabled.
 
@@ -108,14 +108,7 @@ If your n8n instance can reach Easyhook for dynamic options, you can switch `Tem
 
 ### Webhook Automation
 
-Easyhook webhooks are handled with **Easyhook Trigger**. The trigger is not a polling node; it gives n8n a webhook URL. Create the subscription in Easyhook and choose the event scope there.
-
-Security options:
-
-- `Bearer Secret`: recommended for n8n. Easyhook sends `Authorization: Bearer <secret>`.
-- `Custom Header Secret`: validates the configured header name and secret.
-- `HMAC Signature`: validates `X-Easyhook-Signature: sha256=<hex>` using the raw request body when n8n exposes it.
-- `No Auth`: temporary tests only.
+Easyhook webhooks are handled with **Easyhook Trigger**. It is not a polling node: activation creates a `/v1/webhooks` subscription for the n8n Production URL and deactivation removes it. Deliveries are authenticated automatically with `X-Easyhook-Signature: sha256=<hex>`.
 
 Useful event scopes:
 
