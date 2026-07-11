@@ -100,18 +100,6 @@ export class EasyhookTrigger implements INodeType {
           },
         },
       },
-      {
-        displayName: 'Include Headers',
-        name: 'includeHeaders',
-        type: 'boolean',
-        default: false,
-      },
-      {
-        displayName: 'Include Query',
-        name: 'includeQuery',
-        type: 'boolean',
-        default: false,
-      },
     ],
   };
 
@@ -178,14 +166,9 @@ export class EasyhookTrigger implements INodeType {
     }
 
     const body = this.getBodyData();
-    const includeHeaders = this.getNodeParameter('includeHeaders', false) as boolean;
-    const includeQuery = this.getNodeParameter('includeQuery', false) as boolean;
-
     const json: IDataObject = {
       ...body,
     };
-    if (includeHeaders) json.headers = this.getHeaderData() as IDataObject;
-    if (includeQuery) json.query = this.getQueryData() as IDataObject;
 
     const workflowData: INodeExecutionData[][] = [[{ json }]];
     return {

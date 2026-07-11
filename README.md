@@ -43,7 +43,7 @@ Use **Easyhook Trigger** as the first node in a workflow.
 
 n8n registers its Production URL in Easyhook automatically and stores the HMAC signing secret in the workflow's private static data. Deactivating or deleting the workflow removes the Easyhook subscription. No portal setup or secret copy/paste is required.
 
-The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional headers/query if enabled.
+The trigger outputs the normalized Easyhook webhook JSON directly.
 
 ### Send Text
 
@@ -53,7 +53,7 @@ The trigger outputs the webhook JSON exactly as Easyhook sends it, with optional
 - To: `5215660069997`
 - Body: `Hello from n8n`
 
-Turn on **Humanized Delivery** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
+Choose **Humanized Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
 
 ### Send Read Or Typing
 

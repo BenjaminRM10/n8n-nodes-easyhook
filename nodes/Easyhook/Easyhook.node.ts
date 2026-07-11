@@ -152,8 +152,12 @@ export class Easyhook implements INodeType {
       {
         displayName: 'Humanized Delivery',
         name: 'humanizedDelivery',
-        type: 'boolean',
-        default: false,
+        type: 'options',
+        options: [
+          { name: 'Standard', value: 'standard' },
+          { name: 'Humanized', value: 'humanized' },
+        ],
+        default: 'standard',
         description: 'Mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text.',
         displayOptions: {
           show: {
@@ -188,7 +192,7 @@ export class Easyhook implements INodeType {
             operation: ['sendText', 'sendMedia', 'sendTemplate'],
           },
           hide: {
-            humanizedDelivery: [true],
+            humanizedDelivery: [true, 'humanized'],
           },
         },
       },
@@ -740,9 +744,9 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
   if (operation === 'sendText') {
     const to = this.getNodeParameter('to', itemIndex) as string;
     const body = this.getNodeParameter('body', itemIndex) as string;
-    const humanizedDelivery = this.getNodeParameter('humanizedDelivery', itemIndex, false) as boolean;
+    const humanizedDelivery = this.getNodeParameter('humanizedDelivery', itemIndex, 'standard') as boolean | string;
     const messageId = this.getNodeParameter('messageId', itemIndex, '') as string;
-    if (humanizedDelivery) {
+    if (humanizedDelivery === true || humanizedDelivery === 'humanized') {
       return easyhookRequest.call(this, 'POST', '/v1/messages/humanized-text', cleanObject({ from, to, body, message_id: messageId }));
     }
     const at = this.getNodeParameter('at', itemIndex, '') as string;
