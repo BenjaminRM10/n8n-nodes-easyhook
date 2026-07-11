@@ -53,7 +53,7 @@ The trigger outputs the normalized Easyhook webhook JSON directly.
 - To: `5215660069997`
 - Body: `Hello from n8n`
 
-Choose **Humanized Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
+Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
 
 ### Send Read Or Typing
 

@@ -150,7 +150,7 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: 'Humanized Delivery',
+        displayName: 'Delivery',
         name: 'humanizedDelivery',
         type: 'options',
         options: [
