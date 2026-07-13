@@ -5,28 +5,12 @@ import type {
   INodeType,
   INodeTypeDescription,
   IHookFunctions,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
   IWebhookFunctions,
   IWebhookResponseData,
 } from 'n8n-workflow';
 import { easyhookRequest, readArray } from '../../shared/EasyhookClient';
-
-const eventOptions = [
-  { name: 'All Events', value: '*' },
-  { name: 'Account Updates', value: 'account_update.*' },
-  { name: 'Coexistence App State', value: 'smb_app_state_sync.*' },
-  { name: 'Coexistence Message Echoes', value: 'smb_message_echo.*' },
-  { name: 'Flow Submissions', value: 'flow.submission.*' },
-  { name: 'History Sync', value: 'history.*' },
-  { name: 'Instagram Messages', value: 'instagram.message.*' },
-  { name: 'Media Events', value: 'media.*' },
-  { name: 'Messages', value: 'message.*' },
-  { name: 'Messages: Images', value: 'message.image' },
-  { name: 'Messages: Text', value: 'message.text' },
-  { name: 'Messenger Messages', value: 'messenger.message.*' },
-  { name: 'Status: Failed', value: 'status.failed' },
-  { name: 'Status Updates', value: 'status.*' },
-  { name: 'Template Updates', value: 'template.*' },
-];
 
 export class EasyhookTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -56,21 +40,24 @@ export class EasyhookTrigger implements INodeType {
       {
         displayName: 'Provider',
         name: 'providers',
-        type: 'multiOptions',
+        type: 'options',
         options: [
           { name: 'All Providers', value: '*' },
           { name: 'WhatsApp', value: 'whatsapp' },
           { name: 'Messenger', value: 'messenger' },
           { name: 'Instagram', value: 'instagram' },
         ],
-        default: ['*'],
+        default: '*',
         required: true,
       },
       {
-        displayName: 'Expected Events',
+        displayName: 'Events',
         name: 'events',
         type: 'multiOptions',
-        options: eventOptions,
+        typeOptions: {
+          loadOptionsMethod: 'getWebhookEvents',
+          loadOptionsDependsOn: ['providers'],
+        },
         default: ['*'],
         description: 'Events that Easyhook will deliver to this workflow.',
       },
@@ -78,22 +65,23 @@ export class EasyhookTrigger implements INodeType {
         displayName: 'Scope',
         name: 'scopeType',
         type: 'options',
-        options: [
-          { name: 'Entire Organization', value: 'organization' },
-          { name: 'WhatsApp Business Account', value: 'waba' },
-          { name: 'WhatsApp Number', value: 'phone' },
-          { name: 'Messenger or Instagram Channel', value: 'channel' },
-        ],
+        typeOptions: {
+          loadOptionsMethod: 'getWebhookScopeTypes',
+          loadOptionsDependsOn: ['providers'],
+        },
         default: 'organization',
       },
       {
-        displayName: 'Scope Identifier',
+        displayName: 'Account',
         name: 'scopeFrom',
-        type: 'string',
+        type: 'options',
+        typeOptions: {
+          loadOptionsMethod: 'getWebhookScopeIdentifiers',
+          loadOptionsDependsOn: ['providers', 'scopeType'],
+        },
         default: '',
         required: true,
-        placeholder: '5218661479075 or channel alias',
-        description: 'Use a WhatsApp number for a phone or WABA scope, or a Messenger/Instagram channel alias for a channel scope.',
+        description: 'Connected accounts available to this Easyhook API credential.',
         displayOptions: {
           show: {
             scopeType: ['waba', 'phone', 'channel'],
@@ -101,6 +89,20 @@ export class EasyhookTrigger implements INodeType {
         },
       },
     ],
+  };
+
+  methods = {
+    loadOptions: {
+      async getWebhookEvents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        return loadWebhookOptions.call(this, 'events');
+      },
+      async getWebhookScopeTypes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        return loadWebhookOptions.call(this, 'scope_types');
+      },
+      async getWebhookScopeIdentifiers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        return loadWebhookOptions.call(this, 'scope_identifiers');
+      },
+    },
   };
 
   webhookMethods = {
@@ -129,13 +131,26 @@ export class EasyhookTrigger implements INodeType {
           }
         }
 
-        const scopeType = this.getNodeParameter('scopeType', 'organization') as string;
+        const provider = normalizeProvider(this.getNodeParameter('providers', '*'));
+        const requestedScopeType = this.getNodeParameter('scopeType', 'organization') as string;
+        const options = await easyhookRequest.call(this, 'GET', '/v1/webhooks/options', undefined, {
+          provider,
+          scope_type: requestedScopeType,
+        });
+        const allowedEvents = new Set(readOptionValues(options, 'events'));
+        const selectedEvents = this.getNodeParameter('events', ['*']) as string[];
+        const events = selectedEvents.filter((event) => allowedEvents.has(event));
+        const allowedScopes = new Set(readOptionValues(options, 'scope_types'));
+        const scopeType = allowedScopes.has(requestedScopeType) ? requestedScopeType : 'organization';
         const scopeFrom = this.getNodeParameter('scopeFrom', '') as string;
+        if (scopeType !== 'organization' && !readOptionValues(options, 'scope_identifiers').includes(scopeFrom)) {
+          throw new Error('Select a connected Easyhook account for the chosen provider and scope');
+        }
         const response = await easyhookRequest.call(this, 'POST', '/v1/webhooks', {
           name,
           url: webhookUrl,
-          providers: this.getNodeParameter('providers', ['*']) as string[],
-          events: this.getNodeParameter('events', ['*']) as string[],
+          providers: [provider],
+          events: events.length ? events : ['*'],
           auth_type: 'hmac',
           scope: scopeType === 'organization' ? { type: 'organization' } : { type: scopeType, from: scopeFrom },
         });
@@ -176,6 +191,32 @@ export class EasyhookTrigger implements INodeType {
       webhookResponse: { ok: true },
     };
   }
+}
+
+async function loadWebhookOptions(
+  this: ILoadOptionsFunctions,
+  key: 'events' | 'scope_types' | 'scope_identifiers',
+): Promise<INodePropertyOptions[]> {
+  const provider = normalizeProvider(this.getCurrentNodeParameter('providers'));
+  const scopeType = String(this.getCurrentNodeParameter('scopeType') ?? 'organization');
+  const response = await easyhookRequest.call(this, 'GET', '/v1/webhooks/options', undefined, {
+    provider,
+    scope_type: scopeType,
+  });
+  return readArray(response, key).flatMap((option) => {
+    const name = typeof option.name === 'string' ? option.name : '';
+    const value = typeof option.value === 'string' ? option.value : '';
+    return name && value ? [{ name, value }] : [];
+  });
+}
+
+function normalizeProvider(value: unknown): string {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : '*';
+  return typeof value === 'string' && value ? value : '*';
+}
+
+function readOptionValues(response: IDataObject, key: string): string[] {
+  return readArray(response, key).flatMap((option) => typeof option.value === 'string' ? [option.value] : []);
 }
 
 function validateEasyhookAuth(this: IWebhookFunctions): boolean {

@@ -38,8 +38,9 @@ Use **Easyhook Trigger** as the first node in a workflow.
 
 1. Add the Easyhook Trigger node.
 2. Select your Easyhook API credential.
-3. Choose providers, scope, and events.
-4. Activate the workflow.
+3. Choose a provider. Easyhook filters the available events and scope types automatically.
+4. Choose a scope. For WABAs, WhatsApp numbers, Messenger Pages, or Instagram accounts, select a connected account from the list loaded with your API credential.
+5. Activate the workflow.
 
 n8n registers its Production URL in Easyhook automatically and stores the HMAC signing secret in the workflow's private static data. Deactivating or deleting the workflow removes the Easyhook subscription. No portal setup or secret copy/paste is required.
 
