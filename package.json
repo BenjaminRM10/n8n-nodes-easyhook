@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-easyhook",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "n8n community nodes for Easyhook WhatsApp and messaging APIs.",
   "license": "MIT",
   "homepage": "https://easyhook.dev",

@@ -93,10 +93,10 @@ Then send it:
 - Operation: `Send Template`
 - Template Source: `Enter Manually`
 - Template Name: the approved template name in Easyhook/Meta
-- Language: the template language code, for example `es_MX` or `en_US`
+- Language: select the Meta language code from the list, for example `es_MX` or `en_US`
 - Template Variables: add Header, Body, or Button variables in template order. Body row 1 fills `{{1}}`, row 2 fills `{{2}}`, and so on.
 
-If your n8n instance can reach Easyhook for dynamic options, you can switch `Template Source` to `Choose From Easyhook`. That mode loads approved templates and exposes variable fields automatically.
+If your n8n instance can reach Easyhook for dynamic options, you can switch `Template Source` to `Choose From Easyhook`. That mode synchronizes template status with Meta, lists only approved templates, and exposes variable fields automatically.
 
 ### Send WhatsApp Flow
 

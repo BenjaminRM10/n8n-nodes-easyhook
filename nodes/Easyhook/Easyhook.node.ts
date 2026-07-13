@@ -13,6 +13,15 @@ import { cleanObject, easyhookRequest, readArray } from '../../shared/EasyhookCl
 
 const messageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow', 'sendRead', 'sendTyping'];
 const recipientMessageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow'];
+const templateLanguageOptions: INodePropertyOptions[] = [
+  ['af', 'Afrikaans'], ['sq', 'Albanian'], ['ar', 'Arabic'], ['az', 'Azerbaijani'], ['bn', 'Bengali'], ['bg', 'Bulgarian'], ['ca', 'Catalan'], ['zh_CN', 'Chinese (China)'], ['zh_HK', 'Chinese (Hong Kong)'], ['zh_TW', 'Chinese (Taiwan)'],
+  ['hr', 'Croatian'], ['cs', 'Czech'], ['da', 'Danish'], ['nl', 'Dutch'], ['en', 'English'], ['en_GB', 'English (UK)'], ['en_US', 'English (US)'], ['et', 'Estonian'], ['fil', 'Filipino'], ['fi', 'Finnish'],
+  ['fr', 'French'], ['de', 'German'], ['el', 'Greek'], ['gu', 'Gujarati'], ['ha', 'Hausa'], ['he', 'Hebrew'], ['hi', 'Hindi'], ['hu', 'Hungarian'], ['id', 'Indonesian'], ['ga', 'Irish'],
+  ['it', 'Italian'], ['ja', 'Japanese'], ['kn', 'Kannada'], ['kk', 'Kazakh'], ['ko', 'Korean'], ['lo', 'Lao'], ['lv', 'Latvian'], ['lt', 'Lithuanian'], ['mk', 'Macedonian'], ['ms', 'Malay'],
+  ['ml', 'Malayalam'], ['mr', 'Marathi'], ['nb', 'Norwegian'], ['fa', 'Persian'], ['pl', 'Polish'], ['pt_BR', 'Portuguese (Brazil)'], ['pt_PT', 'Portuguese (Portugal)'], ['pa', 'Punjabi'], ['ro', 'Romanian'], ['ru', 'Russian'],
+  ['sr', 'Serbian'], ['sk', 'Slovak'], ['sl', 'Slovenian'], ['es', 'Spanish'], ['es_AR', 'Spanish (Argentina)'], ['es_ES', 'Spanish (Spain)'], ['es_MX', 'Spanish (Mexico)'], ['sw', 'Swahili'], ['sv', 'Swedish'], ['ta', 'Tamil'],
+  ['te', 'Telugu'], ['th', 'Thai'], ['tr', 'Turkish'], ['uk', 'Ukrainian'], ['ur', 'Urdu'], ['uz', 'Uzbek'], ['vi', 'Vietnamese'], ['zu', 'Zulu'],
+].map(([value, label]) => ({ name: `${value} · ${label}`, value }));
 
 export class Easyhook implements INodeType {
   description: INodeTypeDescription = {
@@ -353,7 +362,8 @@ export class Easyhook implements INodeType {
       {
         displayName: 'Language',
         name: 'templateLanguage',
-        type: 'string',
+        type: 'options',
+        options: templateLanguageOptions,
         default: 'es_MX',
         required: true,
         displayOptions: {
@@ -668,15 +678,17 @@ export class Easyhook implements INodeType {
       async getTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
         const from = this.getCurrentNodeParameter('from') as string | undefined;
         if (!from) return [];
-        const response = await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
-        const templates = readArray(response, 'templates');
+        const syncResponse = await easyhookRequest.call(this, 'POST', '/v1/templates/sync', { from });
+        const response = Object.prototype.hasOwnProperty.call(syncResponse, 'templates')
+          ? syncResponse
+          : await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
+        const templates = readArray(response, 'templates').filter(isApprovedTemplate);
         return templates.map((template) => {
           const name = readTemplateString(template, 'name');
           const language = readTemplateLanguage(template);
-          const status = readTemplateString(template, 'status') || readTemplateString(template, 'meta_status') || 'UNKNOWN';
           const category = readTemplateString(template, 'category');
           return {
-            name: [name, language, category, status].filter(Boolean).join(' · '),
+            name: [name, language, category].filter(Boolean).join(' · '),
             value: JSON.stringify({ name, language }),
             description: 'Easyhook WhatsApp template',
           };
@@ -889,6 +901,11 @@ function templateMatchesSelection(template: IDataObject, selected: IDataObject):
   const name = readTemplateString(template, 'name');
   const language = readTemplateLanguage(template) || readTemplateString(template, 'lang');
   return name === selectedName && (!selectedLanguage || language === selectedLanguage);
+}
+
+function isApprovedTemplate(template: IDataObject): boolean {
+  const status = readTemplateString(template, 'status') || readTemplateString(template, 'meta_status');
+  return status?.toUpperCase() === 'APPROVED';
 }
 
 function extractTemplateVariableFields(components: unknown): ResourceMapperFields['fields'] {
