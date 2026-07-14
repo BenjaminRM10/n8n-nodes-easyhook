@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.6 - 2026-07-14
+
+- Use the official `WhatsApp` spelling consistently in node action labels.
+
 ## 0.2.5 - 2026-07-14
 
 - Explain sender ownership errors clearly when `From` is not connected to the organization that owns the selected API credential.

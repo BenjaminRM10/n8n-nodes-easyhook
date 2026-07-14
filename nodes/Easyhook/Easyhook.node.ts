@@ -172,22 +172,22 @@ export class Easyhook implements INodeType {
           {
             name: "Send Flow",
             value: "sendFlow",
-            action: "Send a whats app flow",
+            action: "Send a WhatsApp flow",
           },
           {
             name: "Send Read Receipt",
             value: "sendRead",
-            action: "Mark a whats app message as read",
+            action: "Mark a WhatsApp message as read",
           },
           {
             name: "Send Template",
             value: "sendTemplate",
-            action: "Send a whats app template",
+            action: "Send a WhatsApp template",
           },
           {
             name: "Send Typing Indicator",
             value: "sendTyping",
-            action: "Show whats app typing indicator",
+            action: "Show WhatsApp typing indicator",
           },
         ],
         default: "sendTemplate",
