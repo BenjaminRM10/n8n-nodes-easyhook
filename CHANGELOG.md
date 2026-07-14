@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.3 - 2026-07-14
+
+- Replace the provisional SVG artwork with the optimized official Easyhook brand icon across nodes and credentials.
+
 ## 0.2.2 - 2026-07-14
 
 - Exclude generated TypeScript declarations from the runtime package so the current n8n community package scanner only analyzes executable node files.

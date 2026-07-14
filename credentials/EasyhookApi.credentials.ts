@@ -11,10 +11,7 @@ export class EasyhookApi implements ICredentialType {
 
   displayName = "Easyhook API";
 
-  icon: Icon = {
-    light: "file:../nodes/Easyhook/easyhook.svg",
-    dark: "file:../nodes/Easyhook/easyhook.dark.svg",
-  };
+  icon: Icon = "file:../nodes/Easyhook/easyhook.png";
 
   documentationUrl = "https://easyhook.dev/docs";
 
