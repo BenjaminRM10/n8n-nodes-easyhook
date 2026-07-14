@@ -4,7 +4,9 @@ Community node for using Easyhook from n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
-- Send WhatsApp text, humanized text, read receipts, typing indicators, media, templates, and Flows
+- `Message` groups cross-channel text and media actions.
+- `WhatsApp Only` groups templates, Flows, read receipts, and typing indicators.
+- Use standard or humanized WhatsApp text delivery
 - Schedule messages with Easyhook's `at` parameter
 - Upload reusable media and send it later by `media_name`
 - List/sync templates and media
@@ -60,7 +62,7 @@ Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound
 
 ### Send Read Or Typing
 
-- Resource: `Message`
+- Resource: `WhatsApp Only`
 - Operation: `Send Read Receipt` or `Send Typing Indicator`
 - From: your WhatsApp sender number
 - Inbound Message ID: the inbound WhatsApp `wamid`
@@ -89,7 +91,7 @@ Then send it:
 
 ### Send Template
 
-- Resource: `Message`
+- Resource: `WhatsApp Only`
 - Operation: `Send Template`
 - Template Source: `Enter Manually`
 - Template Name: the approved template name in Easyhook/Meta
@@ -108,9 +110,66 @@ Both template sources support the same data modes. `Choose From Easyhook` select
 
 Use `Custom Components (JSON)` when you need to provide raw Meta `components`. The value can be a components array or `{ "components": [...] }`. Template text itself remains fixed by the approved Meta template.
 
+Text header, body variables, and dynamic URL button:
+
+```json
+[
+  {
+    "type": "header",
+    "parameters": [{ "type": "text", "text": "PED-1048" }]
+  },
+  {
+    "type": "body",
+    "parameters": [
+      { "type": "text", "text": "Benjamin" },
+      { "type": "text", "text": "15 July" }
+    ]
+  },
+  {
+    "type": "button",
+    "sub_type": "url",
+    "index": "0",
+    "parameters": [{ "type": "text", "text": "PED-1048" }]
+  }
+]
+```
+
+Media header and named body variable:
+
+```json
+{
+  "components": [
+    {
+      "type": "header",
+      "parameters": [
+        {
+          "type": "document",
+          "document": {
+            "link": "https://cdn.example.com/invoice.pdf",
+            "filename": "invoice.pdf"
+          }
+        }
+      ]
+    },
+    {
+      "type": "body",
+      "parameters": [
+        {
+          "type": "text",
+          "parameter_name": "customer_name",
+          "text": "Benjamin"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Media links must use HTTPS and be downloadable by Meta without authentication. A dynamic URL button value is the variable suffix, not the complete URL. Use `[]` when the template has no runtime components.
+
 ### Send WhatsApp Flow
 
-- Resource: `Message`
+- Resource: `WhatsApp Only`
 - Operation: `Send Flow`
 - From: your WhatsApp sender number
 - To: customer WhatsApp number

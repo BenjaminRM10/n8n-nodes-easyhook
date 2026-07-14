@@ -61,6 +61,7 @@ export class Easyhook implements INodeType {
           { name: 'Message', value: 'message' },
           { name: 'Scheduled Message', value: 'scheduledMessage' },
           { name: 'Template', value: 'template' },
+          { name: 'WhatsApp Only', value: 'whatsapp' },
         ],
         default: 'message',
       },
@@ -71,14 +72,24 @@ export class Easyhook implements INodeType {
         noDataExpression: true,
         displayOptions: { show: { resource: ['message'] } },
         options: [
-          { name: 'Send Read Receipt', value: 'sendRead', action: 'Mark a WhatsApp message as read' },
-          { name: 'Send Flow', value: 'sendFlow', action: 'Send a WhatsApp Flow' },
           { name: 'Send Media', value: 'sendMedia', action: 'Send media' },
-          { name: 'Send Template', value: 'sendTemplate', action: 'Send a WhatsApp template' },
           { name: 'Send Text', value: 'sendText', action: 'Send a text message' },
-          { name: 'Send Typing Indicator', value: 'sendTyping', action: 'Show WhatsApp typing indicator' },
         ],
         default: 'sendText',
+      },
+      {
+        displayName: 'Operation',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        displayOptions: { show: { resource: ['whatsapp'] } },
+        options: [
+          { name: 'Send Flow', value: 'sendFlow', action: 'Send a WhatsApp Flow' },
+          { name: 'Send Read Receipt', value: 'sendRead', action: 'Mark a WhatsApp message as read' },
+          { name: 'Send Template', value: 'sendTemplate', action: 'Send a WhatsApp template' },
+          { name: 'Send Typing Indicator', value: 'sendTyping', action: 'Show WhatsApp typing indicator' },
+        ],
+        default: 'sendTemplate',
       },
       {
         displayName: 'Operation',
@@ -122,10 +133,10 @@ export class Easyhook implements INodeType {
         type: 'string',
         default: '',
         required: true,
-        description: 'Easyhook-connected WhatsApp sender number. Use digits when possible.',
+        description: 'Easyhook sender number or channel identifier. Use digits for WhatsApp when possible.',
         displayOptions: {
           show: {
-            resource: ['message', 'media', 'template'],
+            resource: ['message', 'whatsapp', 'media', 'template'],
             operation: [...messageOperations, 'upload', 'list', 'sync'],
           },
         },
@@ -139,7 +150,7 @@ export class Easyhook implements INodeType {
         description: 'Customer WhatsApp number or channel recipient ID.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: recipientMessageOperations,
           },
         },
@@ -167,7 +178,7 @@ export class Easyhook implements INodeType {
           { name: 'Humanized', value: 'humanized' },
         ],
         default: 'standard',
-        description: 'Mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text.',
+        description: 'WhatsApp only: mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text.',
         displayOptions: {
           show: {
             resource: ['message'],
@@ -183,7 +194,7 @@ export class Easyhook implements INodeType {
         description: 'Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendText', 'sendRead', 'sendTyping'],
           },
         },
@@ -197,7 +208,7 @@ export class Easyhook implements INodeType {
         description: 'Optional ISO date/time. If empty, Easyhook sends immediately.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendText', 'sendMedia', 'sendTemplate'],
           },
           hide: {
@@ -321,7 +332,7 @@ export class Easyhook implements INodeType {
         description: 'Choose a synchronized template or enter its approved name and language manually.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
           },
         },
@@ -339,7 +350,7 @@ export class Easyhook implements INodeType {
         description: 'Templates are loaded from Easyhook for the WABA behind From.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateSource: ['list'],
           },
@@ -353,7 +364,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateSource: ['manual'],
           },
@@ -368,7 +379,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateSource: ['manual'],
           },
@@ -386,7 +397,7 @@ export class Easyhook implements INodeType {
         description: 'Automatic mode reads the approved template definition. Custom mode sends raw Meta components.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
           },
         },
@@ -418,7 +429,7 @@ export class Easyhook implements INodeType {
         },
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateDataMode: ['mapped'],
           },
@@ -433,7 +444,7 @@ export class Easyhook implements INodeType {
         description: 'Raw Meta components array, or an object containing a components array. This cannot change the approved template text.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateDataMode: ['custom'],
           },
@@ -491,7 +502,7 @@ export class Easyhook implements INodeType {
         ],
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendTemplate'],
             templateSource: ['legacy_manual'],
           },
@@ -505,7 +516,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendFlow'],
           },
         },
@@ -518,7 +529,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendFlow'],
           },
         },
@@ -531,7 +542,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendFlow'],
           },
         },
@@ -568,7 +579,7 @@ export class Easyhook implements INodeType {
         description: 'Optional data sent to the Flow as key/value pairs.',
         displayOptions: {
           show: {
-            resource: ['message'],
+            resource: ['message', 'whatsapp'],
             operation: ['sendFlow'],
           },
         },
@@ -792,7 +803,7 @@ export class Easyhook implements INodeType {
 }
 
 async function executeOperation(this: IExecuteFunctions, resource: string, operation: string, itemIndex: number): Promise<IDataObject> {
-  if (resource === 'message') return executeMessageOperation.call(this, operation, itemIndex);
+  if (resource === 'message' || resource === 'whatsapp') return executeMessageOperation.call(this, operation, itemIndex);
   if (resource === 'media') return executeMediaOperation.call(this, operation, itemIndex);
   if (resource === 'template') return executeTemplateOperation.call(this, operation, itemIndex);
   if (resource === 'scheduledMessage') return executeScheduledMessageOperation.call(this, operation, itemIndex);
