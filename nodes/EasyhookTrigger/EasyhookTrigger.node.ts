@@ -17,7 +17,10 @@ export class EasyhookTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: "Easyhook Trigger",
     name: "easyhookTrigger",
-    icon: "file:easyhook.png",
+    icon: {
+      light: "file:easyhook.svg",
+      dark: "file:easyhook.dark.svg",
+    },
     group: ["trigger"],
     version: 1,
     subtitle: '={{$parameter["providers"]}}',

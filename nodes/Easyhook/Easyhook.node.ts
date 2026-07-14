@@ -104,7 +104,10 @@ export class Easyhook implements INodeType {
   description: INodeTypeDescription = {
     displayName: "Easyhook",
     name: "easyhook",
-    icon: "file:easyhook.png",
+    icon: {
+      light: "file:easyhook.svg",
+      dark: "file:easyhook.dark.svg",
+    },
     group: ["transform"],
     version: 1,
     subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
