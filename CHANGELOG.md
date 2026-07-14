@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.5 - 2026-07-14
+
+- Explain sender ownership errors clearly when `From` is not connected to the organization that owns the selected API credential.
+
 ## 0.2.4 - 2026-07-14
 
 - Embed the official icon artwork in the themed SVG assets so it renders reliably in isolated n8n package views.

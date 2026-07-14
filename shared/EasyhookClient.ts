@@ -42,7 +42,10 @@ export async function easyhookRequest(
       options,
     )) as IDataObject;
   } catch (error) {
-    throw new NodeOperationError(this.getNode(), formatEasyhookError(error));
+    throw new NodeOperationError(
+      this.getNode(),
+      formatEasyhookError(error, endpoint),
+    );
   }
 }
 
@@ -54,7 +57,7 @@ function normalizeBaseUrl(value: string): string {
   return withProtocol.replace(/\/+$/, "").replace(/\/v1$/i, "");
 }
 
-function formatEasyhookError(error: unknown): string {
+function formatEasyhookError(error: unknown, endpoint: string): string {
   if (!error || typeof error !== "object") return String(error);
   const record = error as Record<string, unknown>;
   const response = readRecord(record.response);
@@ -67,19 +70,53 @@ function formatEasyhookError(error: unknown): string {
     response?.status ??
     record.statusCode ??
     record.httpCode;
+  const description = readString(record.description);
   const code =
     readString(body?.error) ??
     readString(body?.code) ??
+    (isKnownEasyhookError(description) ? description : null) ??
     readString(record.code);
   const message = readString(body?.message) ?? readString(record.message);
   const details = readString(body?.details) ?? readString(body?.description);
+  const hint = readString(body?.hint);
+  const friendlyMessage = friendlyEasyhookError({
+    code,
+    endpoint,
+    statusCode,
+  });
   return [
     statusCode ? `Easyhook API error ${statusCode}` : "Easyhook API error",
     code,
-    details ?? message,
+    friendlyMessage ?? [details ?? message, hint].filter(Boolean).join(" "),
   ]
     .filter(Boolean)
     .join(": ");
+}
+
+function friendlyEasyhookError(input: {
+  code: string | null;
+  endpoint: string;
+  statusCode: unknown;
+}): string | null {
+  if (
+    input.code === "phone_not_found" ||
+    input.code === "channel_or_phone_not_found" ||
+    (String(input.statusCode) === "404" &&
+      [
+        "/v1/messages/send",
+        "/v1/messages/text",
+        "/v1/messages/humanized-text",
+        "/v1/messages/read",
+        "/v1/messages/typing",
+      ].includes(input.endpoint))
+  ) {
+    return "The sender in From is not connected to the organization that owns this API key. Select a sender from the same Easyhook organization as the credential.";
+  }
+  return null;
+}
+
+function isKnownEasyhookError(value: string | null): value is string {
+  return value === "phone_not_found" || value === "channel_or_phone_not_found";
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {
