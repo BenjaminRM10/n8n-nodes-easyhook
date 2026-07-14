@@ -375,6 +375,24 @@ export class Easyhook implements INodeType {
         },
       },
       {
+        displayName: 'Template Data',
+        name: 'templateDataMode',
+        type: 'options',
+        options: [
+          { name: 'Map Automatically', value: 'mapped' },
+          { name: 'Custom Components (JSON)', value: 'custom' },
+        ],
+        default: 'mapped',
+        description: 'Automatic mode reads the approved template definition. Custom mode sends raw Meta components.',
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendTemplate'],
+            templateSource: ['list'],
+          },
+        },
+      },
+      {
         displayName: 'Template Variables',
         name: 'templateVariableMapping',
         type: 'resourceMapper',
@@ -396,7 +414,7 @@ export class Easyhook implements INodeType {
             },
             addAllFields: true,
             supportAutoMap: false,
-            noFieldsError: 'This template does not expose any text variables.',
+            noFieldsError: 'This template does not require runtime values.',
           },
         },
         displayOptions: {
@@ -404,6 +422,23 @@ export class Easyhook implements INodeType {
             resource: ['message'],
             operation: ['sendTemplate'],
             templateSource: ['list'],
+            templateDataMode: ['mapped'],
+          },
+        },
+      },
+      {
+        displayName: 'Custom Components (JSON)',
+        name: 'templateCustomComponents',
+        type: 'json',
+        default: '[]',
+        required: true,
+        description: 'Raw Meta components array, or an object containing a components array. This cannot change the approved template text.',
+        displayOptions: {
+          show: {
+            resource: ['message'],
+            operation: ['sendTemplate'],
+            templateSource: ['list'],
+            templateDataMode: ['custom'],
           },
         },
       },
@@ -790,12 +825,17 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
       }
       : parseTemplateSelection(this.getNodeParameter('templateSelection', itemIndex) as string);
     if (templateSource === 'list') {
-      const mappedVariables = this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject;
+      const templateDataMode = this.getNodeParameter('templateDataMode', itemIndex, 'mapped') as string;
+      const components = templateDataMode === 'custom'
+        ? parseCustomTemplateComponents(this.getNodeParameter('templateCustomComponents', itemIndex, '[]'), this, itemIndex)
+        : buildTemplateComponentsFromMapper(
+          this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject,
+        );
       return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
         from,
         to,
         template,
-        components: buildTemplateComponentsFromMapper(mappedVariables),
+        components,
         at,
       }));
     }
@@ -908,26 +948,73 @@ function isApprovedTemplate(template: IDataObject): boolean {
   return status?.toUpperCase() === 'APPROVED';
 }
 
-function extractTemplateVariableFields(components: unknown): ResourceMapperFields['fields'] {
+export function extractTemplateVariableFields(components: unknown): ResourceMapperFields['fields'] {
   if (!Array.isArray(components)) return [];
   const fields: ResourceMapperFields['fields'] = [];
   for (const component of components) {
     if (!isRecord(component)) continue;
     const type = String(component.type ?? '').toUpperCase();
+    if (type === 'HEADER') {
+      const format = String(component.format ?? '').toUpperCase();
+      if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+        const mediaType = format.toLowerCase();
+        fields.push(templateVariableField(
+          `header.media.${mediaType}`,
+          `Header ${titleCase(mediaType)} URL`,
+          true,
+        ));
+        if (format === 'DOCUMENT') {
+          fields.push(templateVariableField('header.media.filename', 'Header Document Filename', false));
+        }
+      }
+      if (format === 'LOCATION') {
+        fields.push(templateVariableField('header.location.latitude', 'Header Location Latitude', true));
+        fields.push(templateVariableField('header.location.longitude', 'Header Location Longitude', true));
+        fields.push(templateVariableField('header.location.name', 'Header Location Name', true));
+        fields.push(templateVariableField('header.location.address', 'Header Location Address', true));
+      }
+    }
     if (type === 'HEADER' || type === 'BODY') {
       const section = type.toLowerCase();
       const text = typeof component.text === 'string' ? component.text : '';
       for (const placeholder of extractPlaceholders(text)) {
-        fields.push(templateVariableField(`${section}.${placeholder}`, `${type} {{${placeholder}}}`));
+        fields.push(templateVariableField(`${section}.text.${placeholder}`, `${titleCase(section)} {{${placeholder}}}`, true));
       }
     }
     if (type === 'BUTTONS' && Array.isArray(component.buttons)) {
       component.buttons.forEach((button, index) => {
         if (!isRecord(button)) return;
-        const buttonType = String(button.type ?? 'url').toLowerCase();
+        const buttonType = String(button.type ?? 'URL').toUpperCase();
         const source = [button.text, button.url].filter((value): value is string => typeof value === 'string').join(' ');
-        for (const placeholder of extractPlaceholders(source)) {
-          fields.push(templateVariableField(`button.${index}.${buttonType}.${placeholder}`, `Button ${index + 1} {{${placeholder}}}`));
+        if (buttonType === 'URL') {
+          for (const placeholder of extractPlaceholders(source)) {
+            fields.push(templateVariableField(
+              `button.${index}.url.text.${placeholder}`,
+              `Button ${index + 1} URL {{${placeholder}}}`,
+              true,
+            ));
+          }
+        }
+        if (buttonType === 'QUICK_REPLY') {
+          fields.push(templateVariableField(
+            `button.${index}.quick_reply.payload`,
+            `Button ${index + 1} Quick Reply Payload`,
+            true,
+          ));
+        }
+        if (buttonType === 'COPY_CODE') {
+          fields.push(templateVariableField(
+            `button.${index}.copy_code.coupon_code`,
+            `Button ${index + 1} Coupon Code`,
+            true,
+          ));
+        }
+        if (buttonType === 'OTP') {
+          fields.push(templateVariableField(
+            `button.${index}.url.text.1`,
+            `Button ${index + 1} Authentication Code`,
+            true,
+          ));
         }
       });
     }
@@ -935,11 +1022,11 @@ function extractTemplateVariableFields(components: unknown): ResourceMapperField
   return fields;
 }
 
-function templateVariableField(id: string, displayName: string): ResourceMapperFields['fields'][number] {
+function templateVariableField(id: string, displayName: string, required: boolean): ResourceMapperFields['fields'][number] {
   return {
     id,
     displayName,
-    required: true,
+    required,
     defaultMatch: false,
     canBeUsedToMatch: false,
     display: true,
@@ -956,9 +1043,11 @@ function extractPlaceholders(value: string): string[] {
   return [...seen].sort((a, b) => parameterSortKey(a).localeCompare(parameterSortKey(b)));
 }
 
-function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
+export function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
   const sections: Record<'header' | 'body', Record<string, string>> = { header: {}, body: {} };
   const buttons = new Map<string, { index: string; subType: string; values: Record<string, string> }>();
+  const headerMedia: Record<string, string> = {};
+  const headerLocation: Record<string, string> = {};
 
   for (const [key, rawValue] of Object.entries(input)) {
     if (!['string', 'number', 'boolean'].includes(typeof rawValue)) continue;
@@ -966,28 +1055,40 @@ function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
     if (!value) continue;
     const parts = key.split('.');
     const section = parts[0];
+    if (section === 'header' && parts[1] === 'media' && parts[2]) {
+      headerMedia[parts[2]] = value;
+      continue;
+    }
+    if (section === 'header' && parts[1] === 'location' && parts[2]) {
+      headerLocation[parts[2]] = value;
+      continue;
+    }
+    if ((section === 'header' || section === 'body') && parts[1] === 'text' && parts[2]) {
+      sections[section][parts.slice(2).join('.')] = value;
+      continue;
+    }
     if ((section === 'header' || section === 'body') && parts[1]) {
       sections[section][parts.slice(1).join('.')] = value;
       continue;
     }
     if (section === 'button' && parts.length >= 4) {
-      const [, index, subType, ...placeholderParts] = parts;
-      const placeholder = placeholderParts.join('.');
+      const [, index, subType, parameterType, ...placeholderParts] = parts;
+      const placeholder = placeholderParts.join('.') || parameterType;
       const buttonKey = `${index}.${subType}`;
       const current = buttons.get(buttonKey) ?? { index, subType, values: {} };
-      current.values[placeholder] = value;
+      current.values[`${parameterType}.${placeholder}`] = value;
       buttons.set(buttonKey, current);
     }
   }
 
   const components: IDataObject[] = [];
-  const header = buildTextComponentFromNamedValues('header', sections.header);
+  const header = buildHeaderComponent(headerMedia, headerLocation, sections.header);
   const body = buildTextComponentFromNamedValues('body', sections.body);
   if (header) components.push(header);
   if (body) components.push(body);
 
   for (const button of [...buttons.values()].sort((a, b) => Number(a.index) - Number(b.index))) {
-    const parameters = buildTextParametersFromNamedValues(button.values);
+    const parameters = buildButtonParameters(button.values);
     if (parameters.length === 0) continue;
     components.push({
       type: 'button',
@@ -998,6 +1099,76 @@ function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
   }
 
   return components;
+}
+
+function buildHeaderComponent(
+  media: Record<string, string>,
+  location: Record<string, string>,
+  text: Record<string, string>,
+): IDataObject | null {
+  const mediaType = ['image', 'video', 'document'].find((type) => media[type]);
+  if (mediaType) {
+    const mediaValue = cleanObject({
+      link: media[mediaType],
+      filename: mediaType === 'document' ? media.filename : undefined,
+    });
+    return { type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaValue }] };
+  }
+  if (location.latitude && location.longitude && location.name && location.address) {
+    return {
+      type: 'header',
+      parameters: [{
+        type: 'location',
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          name: location.name,
+          address: location.address,
+        },
+      }],
+    };
+  }
+  return buildTextComponentFromNamedValues('header', text);
+}
+
+function buildButtonParameters(values: Record<string, string>): IDataObject[] {
+  return Object.entries(values)
+    .sort(([a], [b]) => parameterSortKey(a.split('.').slice(1).join('.')).localeCompare(parameterSortKey(b.split('.').slice(1).join('.'))))
+    .map(([key, value]) => {
+      const [type, ...nameParts] = key.split('.');
+      const name = nameParts.join('.');
+      if (type === 'payload') return { type: 'payload', payload: value };
+      if (type === 'coupon_code') return { type: 'coupon_code', coupon_code: value };
+      return cleanObject({
+        type: 'text',
+        text: value,
+        parameter_name: /^\d+$/.test(name) ? undefined : name,
+      });
+    });
+}
+
+function parseCustomTemplateComponents(
+  value: unknown,
+  context: IExecuteFunctions,
+  itemIndex: number,
+): IDataObject[] {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      throw new NodeOperationError(context.getNode(), 'Custom template components must be valid JSON.', { itemIndex });
+    }
+  }
+  if (isRecord(parsed) && Array.isArray(parsed.components)) parsed = parsed.components;
+  if (!Array.isArray(parsed) || !parsed.every(isRecord)) {
+    throw new NodeOperationError(
+      context.getNode(),
+      'Custom template components must be an array or an object with a components array.',
+      { itemIndex },
+    );
+  }
+  return parsed;
 }
 
 function buildTextComponentFromNamedValues(type: 'header' | 'body', values: Record<string, string>): IDataObject | null {
@@ -1028,6 +1199,10 @@ function buildTemplateParameters(input: IDataObject): IDataObject {
 
 function parameterSortKey(value: string): string {
   return /^\d+$/.test(value) ? value.padStart(6, '0') : `z_${value}`;
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
 function isRecord(value: unknown): value is IDataObject {

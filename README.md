@@ -96,7 +96,17 @@ Then send it:
 - Language: select the Meta language code from the list, for example `es_MX` or `en_US`
 - Template Variables: add Header, Body, or Button variables in template order. Body row 1 fills `{{1}}`, row 2 fills `{{2}}`, and so on.
 
-If your n8n instance can reach Easyhook for dynamic options, you can switch `Template Source` to `Choose From Easyhook`. That mode synchronizes template status with Meta, lists only approved templates, and exposes variable fields automatically.
+If your n8n instance can reach Easyhook for dynamic options, switch `Template Source` to `Choose From Easyhook`. The node synchronizes template status with Meta, lists only approved templates, and reads the selected definition. `Map Automatically` then creates only the fields required at send time:
+
+- Header text variables
+- Header image, video, or document URL and optional document filename
+- Header location fields
+- Body variables, including named variables
+- Dynamic URL button values
+- Quick reply payloads
+- Copy-code coupon values
+
+Use `Custom Components (JSON)` when you need to provide raw Meta `components`. The value can be a components array or `{ "components": [...] }`. Template text itself remains fixed by the approved Meta template.
 
 ### Send WhatsApp Flow
 
