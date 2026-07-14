@@ -4,7 +4,7 @@
     "module": "Node16",
     "moduleResolution": "Node16",
     "lib": ["ES2020"],
-    "declaration": true,
+    "declaration": false,
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,

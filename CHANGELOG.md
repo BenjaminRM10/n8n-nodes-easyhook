@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.2 - 2026-07-14
+
+- Exclude generated TypeScript declarations from the runtime package so the current n8n community package scanner only analyzes executable node files.
+
 ## 0.2.1 - 2026-07-14
 
 - Correct the package author email used for n8n Creator Portal ownership verification.

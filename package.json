@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-easyhook",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Official n8n nodes for the Easyhook messaging API.",
   "license": "MIT",
   "author": {
@@ -25,7 +25,6 @@
     "automation"
   ],
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "README.md"
