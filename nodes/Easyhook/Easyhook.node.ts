@@ -7,708 +7,830 @@ import type {
   INodeType,
   INodeTypeDescription,
   ResourceMapperFields,
-} from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
-import { cleanObject, easyhookRequest, readArray } from '../../shared/EasyhookClient';
+} from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
+import {
+  cleanObject,
+  easyhookRequest,
+  readArray,
+} from "../../shared/EasyhookClient";
 
-const messageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow', 'sendRead', 'sendTyping'];
-const recipientMessageOperations = ['sendText', 'sendMedia', 'sendTemplate', 'sendFlow'];
+const messageOperations = [
+  "sendText",
+  "sendMedia",
+  "sendTemplate",
+  "sendFlow",
+  "sendRead",
+  "sendTyping",
+];
+const recipientMessageOperations = [
+  "sendText",
+  "sendMedia",
+  "sendTemplate",
+  "sendFlow",
+];
 const templateLanguageOptions: INodePropertyOptions[] = [
-  ['af', 'Afrikaans'], ['sq', 'Albanian'], ['ar', 'Arabic'], ['az', 'Azerbaijani'], ['bn', 'Bengali'], ['bg', 'Bulgarian'], ['ca', 'Catalan'], ['zh_CN', 'Chinese (China)'], ['zh_HK', 'Chinese (Hong Kong)'], ['zh_TW', 'Chinese (Taiwan)'],
-  ['hr', 'Croatian'], ['cs', 'Czech'], ['da', 'Danish'], ['nl', 'Dutch'], ['en', 'English'], ['en_GB', 'English (UK)'], ['en_US', 'English (US)'], ['et', 'Estonian'], ['fil', 'Filipino'], ['fi', 'Finnish'],
-  ['fr', 'French'], ['de', 'German'], ['el', 'Greek'], ['gu', 'Gujarati'], ['ha', 'Hausa'], ['he', 'Hebrew'], ['hi', 'Hindi'], ['hu', 'Hungarian'], ['id', 'Indonesian'], ['ga', 'Irish'],
-  ['it', 'Italian'], ['ja', 'Japanese'], ['kn', 'Kannada'], ['kk', 'Kazakh'], ['ko', 'Korean'], ['lo', 'Lao'], ['lv', 'Latvian'], ['lt', 'Lithuanian'], ['mk', 'Macedonian'], ['ms', 'Malay'],
-  ['ml', 'Malayalam'], ['mr', 'Marathi'], ['nb', 'Norwegian'], ['fa', 'Persian'], ['pl', 'Polish'], ['pt_BR', 'Portuguese (Brazil)'], ['pt_PT', 'Portuguese (Portugal)'], ['pa', 'Punjabi'], ['ro', 'Romanian'], ['ru', 'Russian'],
-  ['sr', 'Serbian'], ['sk', 'Slovak'], ['sl', 'Slovenian'], ['es', 'Spanish'], ['es_AR', 'Spanish (Argentina)'], ['es_ES', 'Spanish (Spain)'], ['es_MX', 'Spanish (Mexico)'], ['sw', 'Swahili'], ['sv', 'Swedish'], ['ta', 'Tamil'],
-  ['te', 'Telugu'], ['th', 'Thai'], ['tr', 'Turkish'], ['uk', 'Ukrainian'], ['ur', 'Urdu'], ['uz', 'Uzbek'], ['vi', 'Vietnamese'], ['zu', 'Zulu'],
+  ["af", "Afrikaans"],
+  ["sq", "Albanian"],
+  ["ar", "Arabic"],
+  ["az", "Azerbaijani"],
+  ["bn", "Bengali"],
+  ["bg", "Bulgarian"],
+  ["ca", "Catalan"],
+  ["zh_CN", "Chinese (China)"],
+  ["zh_HK", "Chinese (Hong Kong)"],
+  ["zh_TW", "Chinese (Taiwan)"],
+  ["hr", "Croatian"],
+  ["cs", "Czech"],
+  ["da", "Danish"],
+  ["nl", "Dutch"],
+  ["en", "English"],
+  ["en_GB", "English (UK)"],
+  ["en_US", "English (US)"],
+  ["et", "Estonian"],
+  ["fil", "Filipino"],
+  ["fi", "Finnish"],
+  ["fr", "French"],
+  ["de", "German"],
+  ["el", "Greek"],
+  ["gu", "Gujarati"],
+  ["ha", "Hausa"],
+  ["he", "Hebrew"],
+  ["hi", "Hindi"],
+  ["hu", "Hungarian"],
+  ["id", "Indonesian"],
+  ["ga", "Irish"],
+  ["it", "Italian"],
+  ["ja", "Japanese"],
+  ["kn", "Kannada"],
+  ["kk", "Kazakh"],
+  ["ko", "Korean"],
+  ["lo", "Lao"],
+  ["lv", "Latvian"],
+  ["lt", "Lithuanian"],
+  ["mk", "Macedonian"],
+  ["ms", "Malay"],
+  ["ml", "Malayalam"],
+  ["mr", "Marathi"],
+  ["nb", "Norwegian"],
+  ["fa", "Persian"],
+  ["pl", "Polish"],
+  ["pt_BR", "Portuguese (Brazil)"],
+  ["pt_PT", "Portuguese (Portugal)"],
+  ["pa", "Punjabi"],
+  ["ro", "Romanian"],
+  ["ru", "Russian"],
+  ["sr", "Serbian"],
+  ["sk", "Slovak"],
+  ["sl", "Slovenian"],
+  ["es", "Spanish"],
+  ["es_AR", "Spanish (Argentina)"],
+  ["es_ES", "Spanish (Spain)"],
+  ["es_MX", "Spanish (Mexico)"],
+  ["sw", "Swahili"],
+  ["sv", "Swedish"],
+  ["ta", "Tamil"],
+  ["te", "Telugu"],
+  ["th", "Thai"],
+  ["tr", "Turkish"],
+  ["uk", "Ukrainian"],
+  ["ur", "Urdu"],
+  ["uz", "Uzbek"],
+  ["vi", "Vietnamese"],
+  ["zu", "Zulu"],
 ].map(([value, label]) => ({ name: `${value} · ${label}`, value }));
 
 export class Easyhook implements INodeType {
   description: INodeTypeDescription = {
-    displayName: 'Easyhook',
-    name: 'easyhook',
-    icon: 'file:easyhook.png',
-    group: ['transform'],
+    displayName: "Easyhook",
+    name: "easyhook",
+    icon: {
+      light: "file:easyhook.svg",
+      dark: "file:easyhook.dark.svg",
+    },
+    group: ["transform"],
     version: 1,
     subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
-    description: 'Use Easyhook messaging APIs from n8n',
+    description: "Use Easyhook messaging APIs from n8n",
+    usableAsTool: true,
     defaults: {
-      name: 'Easyhook',
+      name: "Easyhook",
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
-        name: 'easyhookApi',
+        name: "easyhookApi",
         required: true,
       },
     ],
     requestDefaults: {
-      baseURL: '={{$credentials.baseUrl}}',
+      baseURL: "={{$credentials.baseUrl}}",
       headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
+        Accept: "application/json",
+        "Content-Type": "application/json",
       },
     },
     properties: [
       {
-        displayName: 'Resource',
-        name: 'resource',
-        type: 'options',
+        displayName: "Resource",
+        name: "resource",
+        type: "options",
         noDataExpression: true,
         options: [
-          { name: 'Media', value: 'media' },
-          { name: 'Message', value: 'message' },
-          { name: 'Scheduled Message', value: 'scheduledMessage' },
-          { name: 'Template', value: 'template' },
-          { name: 'WhatsApp Only', value: 'whatsapp' },
+          { name: "Media", value: "media" },
+          { name: "Message", value: "message" },
+          { name: "Scheduled Message", value: "scheduledMessage" },
+          { name: "Template", value: "template" },
+          { name: "WhatsApp Only", value: "whatsapp" },
         ],
-        default: 'message',
+        default: "message",
       },
       {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ['message'] } },
+        displayOptions: { show: { resource: ["message"] } },
         options: [
-          { name: 'Send Media', value: 'sendMedia', action: 'Send media' },
-          { name: 'Send Text', value: 'sendText', action: 'Send a text message' },
+          { name: "Send Media", value: "sendMedia", action: "Send media" },
+          {
+            name: "Send Text",
+            value: "sendText",
+            action: "Send a text message",
+          },
         ],
-        default: 'sendText',
+        default: "sendText",
       },
       {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ['whatsapp'] } },
+        displayOptions: { show: { resource: ["whatsapp"] } },
         options: [
-          { name: 'Send Flow', value: 'sendFlow', action: 'Send a WhatsApp Flow' },
-          { name: 'Send Read Receipt', value: 'sendRead', action: 'Mark a WhatsApp message as read' },
-          { name: 'Send Template', value: 'sendTemplate', action: 'Send a WhatsApp template' },
-          { name: 'Send Typing Indicator', value: 'sendTyping', action: 'Show WhatsApp typing indicator' },
+          {
+            name: "Send Flow",
+            value: "sendFlow",
+            action: "Send a whats app flow",
+          },
+          {
+            name: "Send Read Receipt",
+            value: "sendRead",
+            action: "Mark a whats app message as read",
+          },
+          {
+            name: "Send Template",
+            value: "sendTemplate",
+            action: "Send a whats app template",
+          },
+          {
+            name: "Send Typing Indicator",
+            value: "sendTyping",
+            action: "Show whats app typing indicator",
+          },
         ],
-        default: 'sendTemplate',
+        default: "sendTemplate",
       },
       {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ['media'] } },
+        displayOptions: { show: { resource: ["media"] } },
         options: [
-          { name: 'Delete', value: 'delete', action: 'Delete reusable media' },
-          { name: 'List', value: 'list', action: 'List reusable media' },
-          { name: 'Upload', value: 'upload', action: 'Upload reusable media' },
+          { name: "Delete", value: "delete", action: "Delete reusable media" },
+          { name: "List", value: "list", action: "List reusable media" },
+          { name: "Upload", value: "upload", action: "Upload reusable media" },
         ],
-        default: 'list',
+        default: "list",
       },
       {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ['template'] } },
+        displayOptions: { show: { resource: ["template"] } },
         options: [
-          { name: 'List', value: 'list', action: 'List templates' },
-          { name: 'Sync From Meta', value: 'sync', action: 'Sync templates from Meta' },
+          { name: "List", value: "list", action: "List templates" },
+          {
+            name: "Sync From Meta",
+            value: "sync",
+            action: "Sync templates from meta",
+          },
         ],
-        default: 'list',
+        default: "list",
       },
       {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ['scheduledMessage'] } },
+        displayOptions: { show: { resource: ["scheduledMessage"] } },
         options: [
-          { name: 'Cancel', value: 'cancel', action: 'Cancel a scheduled message' },
+          {
+            name: "Cancel",
+            value: "cancel",
+            action: "Cancel a scheduled message",
+          },
         ],
-        default: 'cancel',
+        default: "cancel",
       },
       {
-        displayName: 'From',
-        name: 'from',
-        type: 'string',
-        default: '',
+        displayName: "From",
+        name: "from",
+        type: "string",
+        default: "",
         required: true,
-        description: 'Easyhook sender number or channel identifier. Use digits for WhatsApp when possible.',
+        description:
+          "Easyhook sender number or channel identifier. Use digits for WhatsApp when possible.",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp', 'media', 'template'],
-            operation: [...messageOperations, 'upload', 'list', 'sync'],
+            resource: ["message", "whatsapp", "media", "template"],
+            operation: [...messageOperations, "upload", "list", "sync"],
           },
         },
       },
       {
-        displayName: 'To',
-        name: 'to',
-        type: 'string',
-        default: '',
+        displayName: "To",
+        name: "to",
+        type: "string",
+        default: "",
         required: true,
-        description: 'Customer WhatsApp number or channel recipient ID.',
+        description: "Customer WhatsApp number or channel recipient ID",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
+            resource: ["message", "whatsapp"],
             operation: recipientMessageOperations,
           },
         },
       },
       {
-        displayName: 'Body',
-        name: 'body',
-        type: 'string',
+        displayName: "Body",
+        name: "body",
+        type: "string",
         typeOptions: { rows: 3 },
-        default: '',
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendText'],
+            resource: ["message"],
+            operation: ["sendText"],
           },
         },
       },
       {
-        displayName: 'Delivery',
-        name: 'humanizedDelivery',
-        type: 'options',
+        displayName: "Delivery",
+        name: "humanizedDelivery",
+        type: "options",
         options: [
-          { name: 'Standard', value: 'standard' },
-          { name: 'Humanized', value: 'humanized' },
+          { name: "Humanized", value: "humanized" },
+          { name: "Standard", value: "standard" },
         ],
-        default: 'standard',
-        description: 'WhatsApp only: mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text.',
+        default: "standard",
+        description:
+          "WhatsApp only: mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text",
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendText'],
+            resource: ["message"],
+            operation: ["sendText"],
           },
         },
       },
       {
-        displayName: 'Inbound Message ID',
-        name: 'messageId',
-        type: 'string',
-        default: '',
-        description: 'Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.',
+        displayName: "Inbound Message ID",
+        name: "messageId",
+        type: "string",
+        default: "",
+        description:
+          "Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendText', 'sendRead', 'sendTyping'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendText", "sendRead", "sendTyping"],
           },
         },
       },
       {
-        displayName: 'Schedule At',
-        name: 'at',
-        type: 'string',
-        default: '',
-        placeholder: '2026-07-07T13:10:00-06:00',
-        description: 'Optional ISO date/time. If empty, Easyhook sends immediately.',
+        displayName: "Schedule At",
+        name: "at",
+        type: "string",
+        default: "",
+        placeholder: "2026-07-07T13:10:00-06:00",
+        description:
+          "Optional ISO date/time. If empty, Easyhook sends immediately.",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendText', 'sendMedia', 'sendTemplate'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendText", "sendMedia", "sendTemplate"],
           },
           hide: {
-            humanizedDelivery: [true, 'humanized'],
+            humanizedDelivery: [true, "humanized"],
           },
         },
       },
       {
-        displayName: 'Media Type',
-        name: 'mediaType',
-        type: 'options',
+        displayName: "Media Type",
+        name: "mediaType",
+        type: "options",
         options: [
-          { name: 'Audio', value: 'audio' },
-          { name: 'Document', value: 'document' },
-          { name: 'Image', value: 'image' },
-          { name: 'Sticker', value: 'sticker' },
-          { name: 'Video', value: 'video' },
+          { name: "Audio", value: "audio" },
+          { name: "Document", value: "document" },
+          { name: "Image", value: "image" },
+          { name: "Sticker", value: "sticker" },
+          { name: "Video", value: "video" },
         ],
-        default: 'image',
+        default: "image",
         displayOptions: {
           show: {
-            resource: ['message', 'media'],
-            operation: ['sendMedia', 'upload'],
+            resource: ["message", "media"],
+            operation: ["sendMedia", "upload"],
           },
         },
       },
       {
-        displayName: 'Media Reference Type',
-        name: 'mediaReferenceType',
-        type: 'options',
+        displayName: "Media Reference Type",
+        name: "mediaReferenceType",
+        type: "options",
         options: [
-          { name: 'Easyhook Media Name', value: 'media_name' },
-          { name: 'Meta Media ID', value: 'id' },
-          { name: 'Public Link', value: 'link' },
+          { name: "Easyhook Media Name", value: "media_name" },
+          { name: "Meta Media ID", value: "id" },
+          { name: "Public Link", value: "link" },
         ],
-        default: 'media_name',
+        default: "media_name",
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
+            resource: ["message"],
+            operation: ["sendMedia"],
           },
         },
       },
       {
-        displayName: 'Media Name',
-        name: 'mediaName',
-        type: 'string',
-        default: '',
+        displayName: "Media Name",
+        name: "mediaName",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
-            mediaReferenceType: ['media_name'],
+            resource: ["message"],
+            operation: ["sendMedia"],
+            mediaReferenceType: ["media_name"],
           },
         },
       },
       {
-        displayName: 'Meta Media ID',
-        name: 'mediaId',
-        type: 'string',
-        default: '',
+        displayName: "Meta Media ID",
+        name: "mediaId",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
-            mediaReferenceType: ['id'],
+            resource: ["message"],
+            operation: ["sendMedia"],
+            mediaReferenceType: ["id"],
           },
         },
       },
       {
-        displayName: 'Public Link',
-        name: 'mediaLink',
-        type: 'string',
-        default: '',
+        displayName: "Public Link",
+        name: "mediaLink",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
-            mediaReferenceType: ['link'],
+            resource: ["message"],
+            operation: ["sendMedia"],
+            mediaReferenceType: ["link"],
           },
         },
       },
       {
-        displayName: 'Caption',
-        name: 'caption',
-        type: 'string',
-        default: '',
+        displayName: "Caption",
+        name: "caption",
+        type: "string",
+        default: "",
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
+            resource: ["message"],
+            operation: ["sendMedia"],
           },
         },
       },
       {
-        displayName: 'Filename',
-        name: 'filename',
-        type: 'string',
-        default: '',
-        description: 'Optional filename for document messages.',
+        displayName: "Filename",
+        name: "filename",
+        type: "string",
+        default: "",
+        description: "Optional filename for document messages",
         displayOptions: {
           show: {
-            resource: ['message'],
-            operation: ['sendMedia'],
-            mediaType: ['document'],
+            resource: ["message"],
+            operation: ["sendMedia"],
+            mediaType: ["document"],
           },
         },
       },
       {
-        displayName: 'Template Source',
-        name: 'templateSource',
-        type: 'options',
+        displayName: "Template Source",
+        name: "templateSource",
+        type: "options",
         options: [
-          { name: 'Enter Manually', value: 'manual' },
-          { name: 'Choose From Easyhook', value: 'list' },
+          { name: "Choose From Easyhook", value: "list" },
+          { name: "Enter Manually", value: "manual" },
         ],
-        default: 'manual',
-        description: 'Choose a synchronized template or enter its approved name and language manually.',
+        default: "manual",
+        description:
+          "Choose a synchronized template or enter its approved name and language manually",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
           },
         },
       },
       {
-        displayName: 'Template',
-        name: 'templateSelection',
-        type: 'options',
+        displayName: "Template Name or ID",
+        name: "templateSelection",
+        type: "options",
         typeOptions: {
-          loadOptionsMethod: 'getTemplates',
-          loadOptionsDependsOn: ['from'],
+          loadOptionsMethod: "getTemplates",
+          loadOptionsDependsOn: ["from"],
         },
-        default: '',
+        default: "",
         required: true,
-        description: 'Templates are loaded from Easyhook for the WABA behind From.',
+        description:
+          'Templates are loaded from Easyhook for the WABA behind From. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateSource: ['list'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateSource: ["list"],
           },
         },
       },
       {
-        displayName: 'Template Name',
-        name: 'templateName',
-        type: 'string',
-        default: '',
+        displayName: "Template Name",
+        name: "templateName",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateSource: ['manual'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateSource: ["manual"],
           },
         },
       },
       {
-        displayName: 'Language',
-        name: 'templateLanguage',
-        type: 'options',
+        displayName: "Language",
+        name: "templateLanguage",
+        type: "options",
         options: templateLanguageOptions,
-        default: 'es_MX',
+        default: "es_MX",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateSource: ['manual'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateSource: ["manual"],
           },
         },
       },
       {
-        displayName: 'Template Data',
-        name: 'templateDataMode',
-        type: 'options',
+        displayName: "Template Data",
+        name: "templateDataMode",
+        type: "options",
         options: [
-          { name: 'Map Automatically', value: 'mapped' },
-          { name: 'Custom Components (JSON)', value: 'custom' },
+          { name: "Custom Components (JSON)", value: "custom" },
+          { name: "Map Automatically", value: "mapped" },
         ],
-        default: 'mapped',
-        description: 'Automatic mode reads the approved template definition. Custom mode sends raw Meta components.',
+        default: "mapped",
+        description:
+          "Automatic mode reads the approved template definition. Custom mode sends raw Meta components.",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
           },
         },
       },
       {
-        displayName: 'Template Variables',
-        name: 'templateVariableMapping',
-        type: 'resourceMapper',
+        displayName: "Template Variables",
+        name: "templateVariableMapping",
+        type: "resourceMapper",
         noDataExpression: true,
         default: {
-          mappingMode: 'defineBelow',
+          mappingMode: "defineBelow",
           value: null,
         },
-        required: false,
         typeOptions: {
-          loadOptionsDependsOn: ['from', 'templateSource', 'templateSelection', 'templateName', 'templateLanguage'],
+          loadOptionsDependsOn: [
+            "from",
+            "templateSource",
+            "templateSelection",
+            "templateName",
+            "templateLanguage",
+          ],
           resourceMapper: {
-            resourceMapperMethod: 'getTemplateVariables',
-            mode: 'add',
-            valuesLabel: 'Template Values',
+            resourceMapperMethod: "getTemplateVariables",
+            mode: "add",
+            valuesLabel: "Template Values",
             fieldWords: {
-              singular: 'variable',
-              plural: 'variables',
+              singular: "variable",
+              plural: "variables",
             },
             addAllFields: true,
             supportAutoMap: false,
-            noFieldsError: 'This template does not require runtime values.',
+            noFieldsError: "This template does not require runtime values.",
           },
         },
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateDataMode: ['mapped'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateDataMode: ["mapped"],
           },
         },
       },
       {
-        displayName: 'Custom Components (JSON)',
-        name: 'templateCustomComponents',
-        type: 'json',
-        default: '[]',
+        displayName: "Custom Components (JSON)",
+        name: "templateCustomComponents",
+        type: "json",
+        default: "[]",
         required: true,
-        description: 'Raw Meta components array, or an object containing a components array. This cannot change the approved template text.',
+        description:
+          "Raw Meta components array, or an object containing a components array. This cannot change the approved template text.",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateDataMode: ['custom'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateDataMode: ["custom"],
           },
         },
       },
       {
-        displayName: 'Template Variables',
-        name: 'templateVariables',
-        type: 'fixedCollection',
+        displayName: "Template Variables",
+        name: "templateVariables",
+        type: "fixedCollection",
         typeOptions: {
           multipleValues: true,
         },
         default: {},
-        placeholder: 'Add Variable',
+        placeholder: "Add Variable",
         options: [
           {
-            displayName: 'Header Variable',
-            name: 'header',
+            displayName: "Header Variable",
+            name: "header",
             values: [
               {
-                displayName: 'Value',
-                name: 'value',
-                type: 'string',
-                default: '',
-                description: 'One header variable value.',
+                displayName: "Value",
+                name: "value",
+                type: "string",
+                default: "",
+                description: "One header variable value",
               },
             ],
           },
           {
-            displayName: 'Body Variable',
-            name: 'body',
+            displayName: "Body Variable",
+            name: "body",
             values: [
               {
-                displayName: 'Value',
-                name: 'value',
-                type: 'string',
-                default: '',
-                description: 'One body variable value, in template order.',
+                displayName: "Value",
+                name: "value",
+                type: "string",
+                default: "",
+                description: "One body variable value, in template order",
               },
             ],
           },
           {
-            displayName: 'Button Variable',
-            name: 'button',
+            displayName: "Button Variable",
+            name: "button",
             values: [
               {
-                displayName: 'Value',
-                name: 'value',
-                type: 'string',
-                default: '',
-                description: 'One button variable value.',
+                displayName: "Value",
+                name: "value",
+                type: "string",
+                default: "",
+                description: "One button variable value",
               },
             ],
           },
         ],
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendTemplate'],
-            templateSource: ['legacy_manual'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendTemplate"],
+            templateSource: ["legacy_manual"],
           },
         },
       },
       {
-        displayName: 'Flow Name',
-        name: 'flowName',
-        type: 'string',
-        default: '',
+        displayName: "Flow Name",
+        name: "flowName",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendFlow'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendFlow"],
           },
         },
       },
       {
-        displayName: 'Message Body',
-        name: 'flowBody',
-        type: 'string',
-        default: 'Open this form',
+        displayName: "Message Body",
+        name: "flowBody",
+        type: "string",
+        default: "Open this form",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendFlow'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendFlow"],
           },
         },
       },
       {
-        displayName: 'Button Text',
-        name: 'flowCta',
-        type: 'string',
-        default: 'Open',
+        displayName: "Button Text",
+        name: "flowCta",
+        type: "string",
+        default: "Open",
         required: true,
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendFlow'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendFlow"],
           },
         },
       },
       {
-        displayName: 'Flow Data',
-        name: 'flowData',
-        type: 'fixedCollection',
+        displayName: "Flow Data",
+        name: "flowData",
+        type: "fixedCollection",
         typeOptions: {
           multipleValues: true,
         },
         default: {},
-        placeholder: 'Add Field',
+        placeholder: "Add Field",
         options: [
           {
-            displayName: 'Field',
-            name: 'field',
+            displayName: "Field",
+            name: "field",
             values: [
               {
-                displayName: 'Name',
-                name: 'name',
-                type: 'string',
-                default: '',
+                displayName: "Name",
+                name: "name",
+                type: "string",
+                default: "",
               },
               {
-                displayName: 'Value',
-                name: 'value',
-                type: 'string',
-                default: '',
+                displayName: "Value",
+                name: "value",
+                type: "string",
+                default: "",
               },
             ],
           },
         ],
-        description: 'Optional data sent to the Flow as key/value pairs.',
+        description: "Optional data sent to the Flow as key/value pairs",
         displayOptions: {
           show: {
-            resource: ['message', 'whatsapp'],
-            operation: ['sendFlow'],
+            resource: ["message", "whatsapp"],
+            operation: ["sendFlow"],
           },
         },
       },
       {
-        displayName: 'Media Name',
-        name: 'uploadName',
-        type: 'string',
-        default: '',
+        displayName: "Media Name",
+        name: "uploadName",
+        type: "string",
+        default: "",
         required: true,
-        description: 'Unique reusable media name inside the WABA.',
+        description: "Unique reusable media name inside the WABA",
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
+            resource: ["media"],
+            operation: ["upload"],
           },
         },
       },
       {
-        displayName: 'Upload Source',
-        name: 'uploadSource',
-        type: 'options',
+        displayName: "Upload Source",
+        name: "uploadSource",
+        type: "options",
         options: [
-          { name: 'Base64 Field', value: 'base64' },
-          { name: 'Binary Property', value: 'binary' },
+          { name: "Base64 Field", value: "base64" },
+          { name: "Binary Property", value: "binary" },
         ],
-        default: 'binary',
+        default: "binary",
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
+            resource: ["media"],
+            operation: ["upload"],
           },
         },
       },
       {
-        displayName: 'Binary Property',
-        name: 'binaryPropertyName',
-        type: 'string',
-        default: 'data',
+        displayName: "Binary Property",
+        name: "binaryPropertyName",
+        type: "string",
+        default: "data",
         required: true,
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
-            uploadSource: ['binary'],
+            resource: ["media"],
+            operation: ["upload"],
+            uploadSource: ["binary"],
           },
         },
       },
       {
-        displayName: 'File Base64',
-        name: 'fileBase64',
-        type: 'string',
+        displayName: "File Base64",
+        name: "fileBase64",
+        type: "string",
         typeOptions: { rows: 4 },
-        default: '',
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
-            uploadSource: ['base64'],
+            resource: ["media"],
+            operation: ["upload"],
+            uploadSource: ["base64"],
           },
         },
       },
       {
-        displayName: 'File Name',
-        name: 'fileName',
-        type: 'string',
-        default: '',
+        displayName: "File Name",
+        name: "fileName",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
-            uploadSource: ['base64'],
+            resource: ["media"],
+            operation: ["upload"],
+            uploadSource: ["base64"],
           },
         },
       },
       {
-        displayName: 'File MIME Type',
-        name: 'fileType',
-        type: 'string',
-        default: '',
-        placeholder: 'image/png',
+        displayName: "File MIME Type",
+        name: "fileType",
+        type: "string",
+        default: "",
+        placeholder: "image/png",
         required: true,
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['upload'],
-            uploadSource: ['base64'],
+            resource: ["media"],
+            operation: ["upload"],
+            uploadSource: ["base64"],
           },
         },
       },
       {
-        displayName: 'Media Asset ID',
-        name: 'mediaAssetId',
-        type: 'string',
-        default: '',
+        displayName: "Media Asset ID",
+        name: "mediaAssetId",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['media'],
-            operation: ['delete'],
+            resource: ["media"],
+            operation: ["delete"],
           },
         },
       },
       {
-        displayName: 'Scheduled Message ID',
-        name: 'scheduledMessageId',
-        type: 'string',
-        default: '',
+        displayName: "Scheduled Message ID",
+        name: "scheduledMessageId",
+        type: "string",
+        default: "",
         required: true,
         displayOptions: {
           show: {
-            resource: ['scheduledMessage'],
-            operation: ['cancel'],
+            resource: ["scheduledMessage"],
+            operation: ["cancel"],
           },
         },
       },
       {
-        displayName: 'Options',
-        name: 'options',
-        type: 'collection',
-        placeholder: 'Add Option',
+        displayName: "Options",
+        name: "options",
+        type: "collection",
+        placeholder: "Add Option",
         default: {},
         options: [
           {
-            displayName: 'Return Raw Response',
-            name: 'returnRaw',
-            type: 'boolean',
+            displayName: "Return Raw Response",
+            name: "returnRaw",
+            type: "boolean",
             default: false,
           },
         ],
@@ -718,52 +840,105 @@ export class Easyhook implements INodeType {
 
   methods = {
     loadOptions: {
-      async getTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-        const from = this.getCurrentNodeParameter('from') as string | undefined;
+      async getTemplates(
+        this: ILoadOptionsFunctions,
+      ): Promise<INodePropertyOptions[]> {
+        const from = this.getCurrentNodeParameter("from") as string | undefined;
         if (!from) return [];
-        const syncResponse = await easyhookRequest.call(this, 'POST', '/v1/templates/sync', { from });
-        const response = Object.prototype.hasOwnProperty.call(syncResponse, 'templates')
+        const syncResponse = await easyhookRequest.call(
+          this,
+          "POST",
+          "/v1/templates/sync",
+          { from },
+        );
+        const response = Object.prototype.hasOwnProperty.call(
+          syncResponse,
+          "templates",
+        )
           ? syncResponse
-          : await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
-        const templates = readArray(response, 'templates').filter(isApprovedTemplate);
-        return templates.map((template) => {
-          const name = readTemplateString(template, 'name');
-          const language = readTemplateLanguage(template);
-          const category = readTemplateString(template, 'category');
-          return {
-            name: [name, language, category].filter(Boolean).join(' · '),
-            value: JSON.stringify({ name, language }),
-            description: 'Easyhook WhatsApp template',
-          };
-        }).filter((option) => option.name && option.value);
+          : await easyhookRequest.call(
+              this,
+              "GET",
+              "/v1/templates",
+              undefined,
+              { from },
+            );
+        const templates = readArray(response, "templates").filter(
+          isApprovedTemplate,
+        );
+        return templates
+          .map((template) => {
+            const name = readTemplateString(template, "name");
+            const language = readTemplateLanguage(template);
+            const category = readTemplateString(template, "category");
+            return {
+              name: [name, language, category].filter(Boolean).join(" · "),
+              value: JSON.stringify({ name, language }),
+              description: "Easyhook WhatsApp template",
+            };
+          })
+          .filter((option) => option.name && option.value);
       },
     },
     resourceMapping: {
-      async getTemplateVariables(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
-        const from = this.getCurrentNodeParameter('from') as string | undefined;
-        const source = this.getCurrentNodeParameter('templateSource') as string | undefined;
+      async getTemplateVariables(
+        this: ILoadOptionsFunctions,
+      ): Promise<ResourceMapperFields> {
+        const from = this.getCurrentNodeParameter("from") as string | undefined;
+        const source = this.getCurrentNodeParameter("templateSource") as
+          | string
+          | undefined;
         if (!from) return { fields: [] };
 
-        const selected = source === 'manual'
-          ? {
-            name: String(this.getCurrentNodeParameter('templateName') ?? '').trim(),
-            language: String(this.getCurrentNodeParameter('templateLanguage') ?? '').trim(),
-          }
-          : parseTemplateSelection(String(this.getCurrentNodeParameter('templateSelection') ?? ''));
-        if (!readTemplateString(selected, 'name')) {
-          return { fields: [], emptyFieldsNotice: 'Enter or select a template to load its values.' };
+        const selected =
+          source === "manual"
+            ? {
+                name: String(
+                  this.getCurrentNodeParameter("templateName") ?? "",
+                ).trim(),
+                language: String(
+                  this.getCurrentNodeParameter("templateLanguage") ?? "",
+                ).trim(),
+              }
+            : parseTemplateSelection(
+                String(this.getCurrentNodeParameter("templateSelection") ?? ""),
+              );
+        if (!readTemplateString(selected, "name")) {
+          return {
+            fields: [],
+            emptyFieldsNotice: "Enter or select a template to load its values.",
+          };
         }
 
-        const syncResponse = await easyhookRequest.call(this, 'POST', '/v1/templates/sync', { from });
-        const response = Object.prototype.hasOwnProperty.call(syncResponse, 'templates')
+        const syncResponse = await easyhookRequest.call(
+          this,
+          "POST",
+          "/v1/templates/sync",
+          { from },
+        );
+        const response = Object.prototype.hasOwnProperty.call(
+          syncResponse,
+          "templates",
+        )
           ? syncResponse
-          : await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
-        const templates = readArray(response, 'templates');
-        const template = templates.find((item) => isApprovedTemplate(item) && templateMatchesSelection(item, selected));
+          : await easyhookRequest.call(
+              this,
+              "GET",
+              "/v1/templates",
+              undefined,
+              { from },
+            );
+        const templates = readArray(response, "templates");
+        const template = templates.find(
+          (item) =>
+            isApprovedTemplate(item) &&
+            templateMatchesSelection(item, selected),
+        );
         if (!template) {
           return {
             fields: [],
-            emptyFieldsNotice: 'No approved template matches this name and language for the selected sender.',
+            emptyFieldsNotice:
+              "No approved template matches this name and language for the selected sender.",
           };
         }
 
@@ -780,10 +955,18 @@ export class Easyhook implements INodeType {
 
     for (let i = 0; i < items.length; i++) {
       try {
-        const resource = this.getNodeParameter('resource', i) as string;
-        const operation = this.getNodeParameter('operation', i) as string;
-        const response = await executeOperation.call(this, resource, operation, i);
-        returnData.push({ json: response as IDataObject, pairedItem: { item: i } });
+        const resource = this.getNodeParameter("resource", i) as string;
+        const operation = this.getNodeParameter("operation", i) as string;
+        const response = await executeOperation.call(
+          this,
+          resource,
+          operation,
+          i,
+        );
+        returnData.push({
+          json: response as IDataObject,
+          pairedItem: { item: i },
+        });
       } catch (error) {
         if (this.continueOnFail()) {
           returnData.push({
@@ -794,7 +977,11 @@ export class Easyhook implements INodeType {
           });
           continue;
         }
-        throw error;
+        throw error instanceof NodeOperationError
+          ? error
+          : new NodeOperationError(this.getNode(), error as Error, {
+              itemIndex: i,
+            });
       }
     }
 
@@ -802,147 +989,310 @@ export class Easyhook implements INodeType {
   }
 }
 
-async function executeOperation(this: IExecuteFunctions, resource: string, operation: string, itemIndex: number): Promise<IDataObject> {
-  if (resource === 'message' || resource === 'whatsapp') return executeMessageOperation.call(this, operation, itemIndex);
-  if (resource === 'media') return executeMediaOperation.call(this, operation, itemIndex);
-  if (resource === 'template') return executeTemplateOperation.call(this, operation, itemIndex);
-  if (resource === 'scheduledMessage') return executeScheduledMessageOperation.call(this, operation, itemIndex);
-  throw new NodeOperationError(this.getNode(), `Unsupported resource: ${resource}`, { itemIndex });
+async function executeOperation(
+  this: IExecuteFunctions,
+  resource: string,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  if (resource === "message" || resource === "whatsapp")
+    return executeMessageOperation.call(this, operation, itemIndex);
+  if (resource === "media")
+    return executeMediaOperation.call(this, operation, itemIndex);
+  if (resource === "template")
+    return executeTemplateOperation.call(this, operation, itemIndex);
+  if (resource === "scheduledMessage")
+    return executeScheduledMessageOperation.call(this, operation, itemIndex);
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported resource: ${resource}`,
+    { itemIndex },
+  );
 }
 
-async function executeMessageOperation(this: IExecuteFunctions, operation: string, itemIndex: number): Promise<IDataObject> {
-  const from = this.getNodeParameter('from', itemIndex) as string;
+async function executeMessageOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  const from = this.getNodeParameter("from", itemIndex) as string;
 
-  if (operation === 'sendText') {
-    const to = this.getNodeParameter('to', itemIndex) as string;
-    const body = this.getNodeParameter('body', itemIndex) as string;
-    const humanizedDelivery = this.getNodeParameter('humanizedDelivery', itemIndex, 'standard') as boolean | string;
-    const messageId = this.getNodeParameter('messageId', itemIndex, '') as string;
-    if (humanizedDelivery === true || humanizedDelivery === 'humanized') {
-      return easyhookRequest.call(this, 'POST', '/v1/messages/humanized-text', cleanObject({ from, to, body, message_id: messageId }));
-    }
-    const at = this.getNodeParameter('at', itemIndex, '') as string;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/text', cleanObject({ from, to, body, at }));
-  }
-
-  if (operation === 'sendMedia') {
-    const to = this.getNodeParameter('to', itemIndex) as string;
-    const type = this.getNodeParameter('mediaType', itemIndex) as string;
-    const referenceType = this.getNodeParameter('mediaReferenceType', itemIndex) as string;
-    const caption = this.getNodeParameter('caption', itemIndex, '') as string;
-    const filename = this.getNodeParameter('filename', itemIndex, '') as string;
-    const at = this.getNodeParameter('at', itemIndex, '') as string;
-    const body: IDataObject = cleanObject({ from, to, type, caption, filename, at });
-    if (referenceType === 'media_name') body.media_name = this.getNodeParameter('mediaName', itemIndex) as string;
-    if (referenceType === 'id') body.id = this.getNodeParameter('mediaId', itemIndex) as string;
-    if (referenceType === 'link') body.link = this.getNodeParameter('mediaLink', itemIndex) as string;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/media', body);
-  }
-
-  if (operation === 'sendTemplate') {
-    const to = this.getNodeParameter('to', itemIndex) as string;
-    const at = this.getNodeParameter('at', itemIndex, '') as string;
-    const templateSource = this.getNodeParameter('templateSource', itemIndex, 'list') as string;
-    const template = templateSource === 'manual'
-      ? {
-        name: this.getNodeParameter('templateName', itemIndex) as string,
-        language: this.getNodeParameter('templateLanguage', itemIndex) as string,
-      }
-      : parseTemplateSelection(this.getNodeParameter('templateSelection', itemIndex) as string);
-    const templateDataMode = this.getNodeParameter('templateDataMode', itemIndex, 'mapped') as string;
-    const components = templateDataMode === 'custom'
-      ? parseCustomTemplateComponents(this.getNodeParameter('templateCustomComponents', itemIndex, '[]'), this, itemIndex)
-      : buildTemplateComponentsFromMapper(
-        this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject,
+  if (operation === "sendText") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const body = this.getNodeParameter("body", itemIndex) as string;
+    const humanizedDelivery = this.getNodeParameter(
+      "humanizedDelivery",
+      itemIndex,
+      "standard",
+    ) as boolean | string;
+    const messageId = this.getNodeParameter(
+      "messageId",
+      itemIndex,
+      "",
+    ) as string;
+    if (humanizedDelivery === true || humanizedDelivery === "humanized") {
+      return easyhookRequest.call(
+        this,
+        "POST",
+        "/v1/messages/humanized-text",
+        cleanObject({ from, to, body, message_id: messageId }),
       );
-    const legacyParameters = templateSource === 'manual' && templateDataMode === 'mapped' && components.length === 0
-      ? buildTemplateParameters(this.getNodeParameter('templateVariables', itemIndex, {}) as IDataObject)
-      : undefined;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
+    }
+    const at = this.getNodeParameter("at", itemIndex, "") as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/text",
+      cleanObject({ from, to, body, at }),
+    );
+  }
+
+  if (operation === "sendMedia") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const type = this.getNodeParameter("mediaType", itemIndex) as string;
+    const referenceType = this.getNodeParameter(
+      "mediaReferenceType",
+      itemIndex,
+    ) as string;
+    const caption = this.getNodeParameter("caption", itemIndex, "") as string;
+    const filename = this.getNodeParameter("filename", itemIndex, "") as string;
+    const at = this.getNodeParameter("at", itemIndex, "") as string;
+    const body: IDataObject = cleanObject({
       from,
       to,
-      template,
-      components: legacyParameters && Object.keys(legacyParameters).length > 0 ? undefined : components,
-      parameters: legacyParameters && Object.keys(legacyParameters).length > 0 ? legacyParameters : undefined,
+      type,
+      caption,
+      filename,
       at,
-    }));
+    });
+    if (referenceType === "media_name")
+      body.media_name = this.getNodeParameter("mediaName", itemIndex) as string;
+    if (referenceType === "id")
+      body.id = this.getNodeParameter("mediaId", itemIndex) as string;
+    if (referenceType === "link")
+      body.link = this.getNodeParameter("mediaLink", itemIndex) as string;
+    return easyhookRequest.call(this, "POST", "/v1/messages/media", body);
   }
 
-  if (operation === 'sendFlow') {
-    const to = this.getNodeParameter('to', itemIndex) as string;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/flow', cleanObject({
-      from,
-      to,
-      flow_name: this.getNodeParameter('flowName', itemIndex) as string,
-      body: this.getNodeParameter('flowBody', itemIndex) as string,
-      cta: this.getNodeParameter('flowCta', itemIndex) as string,
-      payload: buildKeyValueObject(this.getNodeParameter('flowData', itemIndex, {}) as IDataObject),
-    }));
+  if (operation === "sendTemplate") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const at = this.getNodeParameter("at", itemIndex, "") as string;
+    const templateSource = this.getNodeParameter(
+      "templateSource",
+      itemIndex,
+      "list",
+    ) as string;
+    const template =
+      templateSource === "manual"
+        ? {
+            name: this.getNodeParameter("templateName", itemIndex) as string,
+            language: this.getNodeParameter(
+              "templateLanguage",
+              itemIndex,
+            ) as string,
+          }
+        : parseTemplateSelection(
+            this.getNodeParameter("templateSelection", itemIndex) as string,
+          );
+    const templateDataMode = this.getNodeParameter(
+      "templateDataMode",
+      itemIndex,
+      "mapped",
+    ) as string;
+    const components =
+      templateDataMode === "custom"
+        ? parseCustomTemplateComponents(
+            this.getNodeParameter("templateCustomComponents", itemIndex, "[]"),
+            this,
+            itemIndex,
+          )
+        : buildTemplateComponentsFromMapper(
+            this.getNodeParameter(
+              "templateVariableMapping.value",
+              itemIndex,
+              {},
+            ) as IDataObject,
+          );
+    const legacyParameters =
+      templateSource === "manual" &&
+      templateDataMode === "mapped" &&
+      components.length === 0
+        ? buildTemplateParameters(
+            this.getNodeParameter(
+              "templateVariables",
+              itemIndex,
+              {},
+            ) as IDataObject,
+          )
+        : undefined;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/template",
+      cleanObject({
+        from,
+        to,
+        template,
+        components:
+          legacyParameters && Object.keys(legacyParameters).length > 0
+            ? undefined
+            : components,
+        parameters:
+          legacyParameters && Object.keys(legacyParameters).length > 0
+            ? legacyParameters
+            : undefined,
+        at,
+      }),
+    );
   }
 
-  if (operation === 'sendRead') {
-    const messageId = this.getNodeParameter('messageId', itemIndex) as string;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/read', cleanObject({ from, message_id: messageId }));
+  if (operation === "sendFlow") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/flow",
+      cleanObject({
+        from,
+        to,
+        flow_name: this.getNodeParameter("flowName", itemIndex) as string,
+        body: this.getNodeParameter("flowBody", itemIndex) as string,
+        cta: this.getNodeParameter("flowCta", itemIndex) as string,
+        payload: buildKeyValueObject(
+          this.getNodeParameter("flowData", itemIndex, {}) as IDataObject,
+        ),
+      }),
+    );
   }
 
-  if (operation === 'sendTyping') {
-    const messageId = this.getNodeParameter('messageId', itemIndex) as string;
-    return easyhookRequest.call(this, 'POST', '/v1/messages/typing', cleanObject({ from, message_id: messageId }));
+  if (operation === "sendRead") {
+    const messageId = this.getNodeParameter("messageId", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/read",
+      cleanObject({ from, message_id: messageId }),
+    );
   }
 
-  throw new NodeOperationError(this.getNode(), `Unsupported message operation: ${operation}`, { itemIndex });
+  if (operation === "sendTyping") {
+    const messageId = this.getNodeParameter("messageId", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/typing",
+      cleanObject({ from, message_id: messageId }),
+    );
+  }
+
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported message operation: ${operation}`,
+    { itemIndex },
+  );
 }
 
-async function executeMediaOperation(this: IExecuteFunctions, operation: string, itemIndex: number): Promise<IDataObject> {
-  if (operation === 'list') {
-    const from = this.getNodeParameter('from', itemIndex) as string;
-    return easyhookRequest.call(this, 'GET', '/v1/media', undefined, { from });
+async function executeMediaOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  if (operation === "list") {
+    const from = this.getNodeParameter("from", itemIndex) as string;
+    return easyhookRequest.call(this, "GET", "/v1/media", undefined, { from });
   }
 
-  if (operation === 'delete') {
-    const id = this.getNodeParameter('mediaAssetId', itemIndex) as string;
-    return easyhookRequest.call(this, 'DELETE', `/v1/media/${encodeURIComponent(id)}`);
+  if (operation === "delete") {
+    const id = this.getNodeParameter("mediaAssetId", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "DELETE",
+      `/v1/media/${encodeURIComponent(id)}`,
+    );
   }
 
-  if (operation === 'upload') {
-    const from = this.getNodeParameter('from', itemIndex) as string;
-    const name = this.getNodeParameter('uploadName', itemIndex) as string;
-    const type = this.getNodeParameter('mediaType', itemIndex) as string;
-    const uploadSource = this.getNodeParameter('uploadSource', itemIndex) as string;
+  if (operation === "upload") {
+    const from = this.getNodeParameter("from", itemIndex) as string;
+    const name = this.getNodeParameter("uploadName", itemIndex) as string;
+    const type = this.getNodeParameter("mediaType", itemIndex) as string;
+    const uploadSource = this.getNodeParameter(
+      "uploadSource",
+      itemIndex,
+    ) as string;
     const body: IDataObject = { from, name, type };
 
-    if (uploadSource === 'binary') {
-      const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex) as string;
-      const binaryData = this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
-      const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+    if (uploadSource === "binary") {
+      const binaryPropertyName = this.getNodeParameter(
+        "binaryPropertyName",
+        itemIndex,
+      ) as string;
+      const binaryData = this.helpers.assertBinaryData(
+        itemIndex,
+        binaryPropertyName,
+      );
+      const buffer = await this.helpers.getBinaryDataBuffer(
+        itemIndex,
+        binaryPropertyName,
+      );
       body.file_name = binaryData.fileName ?? name;
-      body.file_type = binaryData.mimeType ?? 'application/octet-stream';
-      body.file_base64 = buffer.toString('base64');
+      body.file_type = binaryData.mimeType ?? "application/octet-stream";
+      body.file_base64 = buffer.toString("base64");
     } else {
-      body.file_name = this.getNodeParameter('fileName', itemIndex) as string;
-      body.file_type = this.getNodeParameter('fileType', itemIndex) as string;
-      body.file_base64 = this.getNodeParameter('fileBase64', itemIndex) as string;
+      body.file_name = this.getNodeParameter("fileName", itemIndex) as string;
+      body.file_type = this.getNodeParameter("fileType", itemIndex) as string;
+      body.file_base64 = this.getNodeParameter(
+        "fileBase64",
+        itemIndex,
+      ) as string;
     }
 
-    return easyhookRequest.call(this, 'POST', '/v1/media', body);
+    return easyhookRequest.call(this, "POST", "/v1/media", body);
   }
 
-  throw new NodeOperationError(this.getNode(), `Unsupported media operation: ${operation}`, { itemIndex });
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported media operation: ${operation}`,
+    { itemIndex },
+  );
 }
 
-async function executeTemplateOperation(this: IExecuteFunctions, operation: string, itemIndex: number): Promise<IDataObject> {
-  const from = this.getNodeParameter('from', itemIndex) as string;
-  if (operation === 'list') return easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
-  if (operation === 'sync') return easyhookRequest.call(this, 'POST', '/v1/templates/sync', { from });
-  throw new NodeOperationError(this.getNode(), `Unsupported template operation: ${operation}`, { itemIndex });
+async function executeTemplateOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  const from = this.getNodeParameter("from", itemIndex) as string;
+  if (operation === "list")
+    return easyhookRequest.call(this, "GET", "/v1/templates", undefined, {
+      from,
+    });
+  if (operation === "sync")
+    return easyhookRequest.call(this, "POST", "/v1/templates/sync", { from });
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported template operation: ${operation}`,
+    { itemIndex },
+  );
 }
 
-async function executeScheduledMessageOperation(this: IExecuteFunctions, operation: string, itemIndex: number): Promise<IDataObject> {
-  if (operation === 'cancel') {
-    const id = this.getNodeParameter('scheduledMessageId', itemIndex) as string;
-    return easyhookRequest.call(this, 'DELETE', `/v1/scheduled-messages/${encodeURIComponent(id)}`);
+async function executeScheduledMessageOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  if (operation === "cancel") {
+    const id = this.getNodeParameter("scheduledMessageId", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "DELETE",
+      `/v1/scheduled-messages/${encodeURIComponent(id)}`,
+    );
   }
-  throw new NodeOperationError(this.getNode(), `Unsupported scheduled message operation: ${operation}`, { itemIndex });
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported scheduled message operation: ${operation}`,
+    { itemIndex },
+  );
 }
 
 function parseTemplateSelection(value: string): IDataObject {
@@ -953,87 +1303,146 @@ function parseTemplateSelection(value: string): IDataObject {
   }
 }
 
-function templateMatchesSelection(template: IDataObject, selected: IDataObject): boolean {
-  const selectedName = readTemplateString(selected, 'name');
+function templateMatchesSelection(
+  template: IDataObject,
+  selected: IDataObject,
+): boolean {
+  const selectedName = readTemplateString(selected, "name");
   const selectedLanguage = readTemplateLanguage(selected);
   if (!selectedName) return false;
-  const name = readTemplateString(template, 'name');
-  const language = readTemplateLanguage(template) || readTemplateString(template, 'lang');
-  return name === selectedName && (!selectedLanguage || language === selectedLanguage);
+  const name = readTemplateString(template, "name");
+  const language =
+    readTemplateLanguage(template) || readTemplateString(template, "lang");
+  return (
+    name === selectedName &&
+    (!selectedLanguage || language === selectedLanguage)
+  );
 }
 
 function isApprovedTemplate(template: IDataObject): boolean {
-  const status = readTemplateString(template, 'status') || readTemplateString(template, 'meta_status');
-  return status?.toUpperCase() === 'APPROVED';
+  const status =
+    readTemplateString(template, "status") ||
+    readTemplateString(template, "meta_status");
+  return status?.toUpperCase() === "APPROVED";
 }
 
-export function extractTemplateVariableFields(components: unknown): ResourceMapperFields['fields'] {
+export function extractTemplateVariableFields(
+  components: unknown,
+): ResourceMapperFields["fields"] {
   if (!Array.isArray(components)) return [];
-  const fields: ResourceMapperFields['fields'] = [];
+  const fields: ResourceMapperFields["fields"] = [];
   for (const component of components) {
     if (!isRecord(component)) continue;
-    const type = String(component.type ?? '').toUpperCase();
-    if (type === 'HEADER') {
-      const format = String(component.format ?? '').toUpperCase();
-      if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+    const type = String(component.type ?? "").toUpperCase();
+    if (type === "HEADER") {
+      const format = String(component.format ?? "").toUpperCase();
+      if (["IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
         const mediaType = format.toLowerCase();
-        fields.push(templateVariableField(
-          `header.media.${mediaType}`,
-          `Header ${titleCase(mediaType)} URL`,
-          true,
-        ));
-        if (format === 'DOCUMENT') {
-          fields.push(templateVariableField('header.media.filename', 'Header Document Filename', false));
+        fields.push(
+          templateVariableField(
+            `header.media.${mediaType}`,
+            `Header ${titleCase(mediaType)} URL`,
+            true,
+          ),
+        );
+        if (format === "DOCUMENT") {
+          fields.push(
+            templateVariableField(
+              "header.media.filename",
+              "Header Document Filename",
+              false,
+            ),
+          );
         }
       }
-      if (format === 'LOCATION') {
-        fields.push(templateVariableField('header.location.latitude', 'Header Location Latitude', true));
-        fields.push(templateVariableField('header.location.longitude', 'Header Location Longitude', true));
-        fields.push(templateVariableField('header.location.name', 'Header Location Name', true));
-        fields.push(templateVariableField('header.location.address', 'Header Location Address', true));
+      if (format === "LOCATION") {
+        fields.push(
+          templateVariableField(
+            "header.location.latitude",
+            "Header Location Latitude",
+            true,
+          ),
+        );
+        fields.push(
+          templateVariableField(
+            "header.location.longitude",
+            "Header Location Longitude",
+            true,
+          ),
+        );
+        fields.push(
+          templateVariableField(
+            "header.location.name",
+            "Header Location Name",
+            true,
+          ),
+        );
+        fields.push(
+          templateVariableField(
+            "header.location.address",
+            "Header Location Address",
+            true,
+          ),
+        );
       }
     }
-    if (type === 'HEADER' || type === 'BODY') {
+    if (type === "HEADER" || type === "BODY") {
       const section = type.toLowerCase();
-      const text = typeof component.text === 'string' ? component.text : '';
+      const text = typeof component.text === "string" ? component.text : "";
       for (const placeholder of extractPlaceholders(text)) {
-        fields.push(templateVariableField(`${section}.text.${placeholder}`, `${titleCase(section)} {{${placeholder}}}`, true));
+        fields.push(
+          templateVariableField(
+            `${section}.text.${placeholder}`,
+            `${titleCase(section)} {{${placeholder}}}`,
+            true,
+          ),
+        );
       }
     }
-    if (type === 'BUTTONS' && Array.isArray(component.buttons)) {
+    if (type === "BUTTONS" && Array.isArray(component.buttons)) {
       component.buttons.forEach((button, index) => {
         if (!isRecord(button)) return;
-        const buttonType = String(button.type ?? 'URL').toUpperCase();
-        const source = [button.text, button.url].filter((value): value is string => typeof value === 'string').join(' ');
-        if (buttonType === 'URL') {
+        const buttonType = String(button.type ?? "URL").toUpperCase();
+        const source = [button.text, button.url]
+          .filter((value): value is string => typeof value === "string")
+          .join(" ");
+        if (buttonType === "URL") {
           for (const placeholder of extractPlaceholders(source)) {
-            fields.push(templateVariableField(
-              `button.${index}.url.text.${placeholder}`,
-              `Button ${index + 1} URL {{${placeholder}}}`,
-              true,
-            ));
+            fields.push(
+              templateVariableField(
+                `button.${index}.url.text.${placeholder}`,
+                `Button ${index + 1} URL {{${placeholder}}}`,
+                true,
+              ),
+            );
           }
         }
-        if (buttonType === 'QUICK_REPLY') {
-          fields.push(templateVariableField(
-            `button.${index}.quick_reply.payload`,
-            `Button ${index + 1} Quick Reply Payload`,
-            true,
-          ));
+        if (buttonType === "QUICK_REPLY") {
+          fields.push(
+            templateVariableField(
+              `button.${index}.quick_reply.payload`,
+              `Button ${index + 1} Quick Reply Payload`,
+              true,
+            ),
+          );
         }
-        if (buttonType === 'COPY_CODE') {
-          fields.push(templateVariableField(
-            `button.${index}.copy_code.coupon_code`,
-            `Button ${index + 1} Coupon Code`,
-            true,
-          ));
+        if (buttonType === "COPY_CODE") {
+          fields.push(
+            templateVariableField(
+              `button.${index}.copy_code.coupon_code`,
+              `Button ${index + 1} Coupon Code`,
+              true,
+            ),
+          );
         }
-        if (buttonType === 'OTP') {
-          fields.push(templateVariableField(
-            `button.${index}.url.text.1`,
-            `Button ${index + 1} Authentication Code`,
-            true,
-          ));
+        if (buttonType === "OTP") {
+          fields.push(
+            templateVariableField(
+              `button.${index}.url.text.1`,
+              `Button ${index + 1} Authentication Code`,
+              true,
+            ),
+          );
         }
       });
     }
@@ -1041,7 +1450,11 @@ export function extractTemplateVariableFields(components: unknown): ResourceMapp
   return fields;
 }
 
-function templateVariableField(id: string, displayName: string, required: boolean): ResourceMapperFields['fields'][number] {
+function templateVariableField(
+  id: string,
+  displayName: string,
+  required: boolean,
+): ResourceMapperFields["fields"][number] {
   return {
     id,
     displayName,
@@ -1049,7 +1462,7 @@ function templateVariableField(id: string, displayName: string, required: boolea
     defaultMatch: false,
     canBeUsedToMatch: false,
     display: true,
-    type: 'string',
+    type: "string",
   };
 }
 
@@ -1059,40 +1472,54 @@ function extractPlaceholders(value: string): string[] {
   for (const match of matches) {
     if (match[1]) seen.add(match[1]);
   }
-  return [...seen].sort((a, b) => parameterSortKey(a).localeCompare(parameterSortKey(b)));
+  return [...seen].sort((a, b) =>
+    parameterSortKey(a).localeCompare(parameterSortKey(b)),
+  );
 }
 
-export function buildTemplateComponentsFromMapper(input: IDataObject): IDataObject[] {
-  const sections: Record<'header' | 'body', Record<string, string>> = { header: {}, body: {} };
-  const buttons = new Map<string, { index: string; subType: string; values: Record<string, string> }>();
+export function buildTemplateComponentsFromMapper(
+  input: IDataObject,
+): IDataObject[] {
+  const sections: Record<"header" | "body", Record<string, string>> = {
+    header: {},
+    body: {},
+  };
+  const buttons = new Map<
+    string,
+    { index: string; subType: string; values: Record<string, string> }
+  >();
   const headerMedia: Record<string, string> = {};
   const headerLocation: Record<string, string> = {};
 
   for (const [key, rawValue] of Object.entries(input)) {
-    if (!['string', 'number', 'boolean'].includes(typeof rawValue)) continue;
+    if (!["string", "number", "boolean"].includes(typeof rawValue)) continue;
     const value = String(rawValue);
     if (!value) continue;
-    const parts = key.split('.');
+    const parts = key.split(".");
     const section = parts[0];
-    if (section === 'header' && parts[1] === 'media' && parts[2]) {
+    if (section === "header" && parts[1] === "media" && parts[2]) {
       headerMedia[parts[2]] = value;
       continue;
     }
-    if (section === 'header' && parts[1] === 'location' && parts[2]) {
+    if (section === "header" && parts[1] === "location" && parts[2]) {
       headerLocation[parts[2]] = value;
       continue;
     }
-    if ((section === 'header' || section === 'body') && parts[1] === 'text' && parts[2]) {
-      sections[section][parts.slice(2).join('.')] = value;
+    if (
+      (section === "header" || section === "body") &&
+      parts[1] === "text" &&
+      parts[2]
+    ) {
+      sections[section][parts.slice(2).join(".")] = value;
       continue;
     }
-    if ((section === 'header' || section === 'body') && parts[1]) {
-      sections[section][parts.slice(1).join('.')] = value;
+    if ((section === "header" || section === "body") && parts[1]) {
+      sections[section][parts.slice(1).join(".")] = value;
       continue;
     }
-    if (section === 'button' && parts.length >= 4) {
+    if (section === "button" && parts.length >= 4) {
       const [, index, subType, parameterType, ...placeholderParts] = parts;
-      const placeholder = placeholderParts.join('.') || parameterType;
+      const placeholder = placeholderParts.join(".") || parameterType;
       const buttonKey = `${index}.${subType}`;
       const current = buttons.get(buttonKey) ?? { index, subType, values: {} };
       current.values[`${parameterType}.${placeholder}`] = value;
@@ -1101,16 +1528,22 @@ export function buildTemplateComponentsFromMapper(input: IDataObject): IDataObje
   }
 
   const components: IDataObject[] = [];
-  const header = buildHeaderComponent(headerMedia, headerLocation, sections.header);
-  const body = buildTextComponentFromNamedValues('body', sections.body);
+  const header = buildHeaderComponent(
+    headerMedia,
+    headerLocation,
+    sections.header,
+  );
+  const body = buildTextComponentFromNamedValues("body", sections.body);
   if (header) components.push(header);
   if (body) components.push(body);
 
-  for (const button of [...buttons.values()].sort((a, b) => Number(a.index) - Number(b.index))) {
+  for (const button of [...buttons.values()].sort(
+    (a, b) => Number(a.index) - Number(b.index),
+  )) {
     const parameters = buildButtonParameters(button.values);
     if (parameters.length === 0) continue;
     components.push({
-      type: 'button',
+      type: "button",
       sub_type: button.subType,
       index: button.index,
       parameters,
@@ -1125,41 +1558,56 @@ function buildHeaderComponent(
   location: Record<string, string>,
   text: Record<string, string>,
 ): IDataObject | null {
-  const mediaType = ['image', 'video', 'document'].find((type) => media[type]);
+  const mediaType = ["image", "video", "document"].find((type) => media[type]);
   if (mediaType) {
     const mediaValue = cleanObject({
       link: media[mediaType],
-      filename: mediaType === 'document' ? media.filename : undefined,
+      filename: mediaType === "document" ? media.filename : undefined,
     });
-    return { type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaValue }] };
-  }
-  if (location.latitude && location.longitude && location.name && location.address) {
     return {
-      type: 'header',
-      parameters: [{
-        type: 'location',
-        location: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          name: location.name,
-          address: location.address,
-        },
-      }],
+      type: "header",
+      parameters: [{ type: mediaType, [mediaType]: mediaValue }],
     };
   }
-  return buildTextComponentFromNamedValues('header', text);
+  if (
+    location.latitude &&
+    location.longitude &&
+    location.name &&
+    location.address
+  ) {
+    return {
+      type: "header",
+      parameters: [
+        {
+          type: "location",
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            name: location.name,
+            address: location.address,
+          },
+        },
+      ],
+    };
+  }
+  return buildTextComponentFromNamedValues("header", text);
 }
 
 function buildButtonParameters(values: Record<string, string>): IDataObject[] {
   return Object.entries(values)
-    .sort(([a], [b]) => parameterSortKey(a.split('.').slice(1).join('.')).localeCompare(parameterSortKey(b.split('.').slice(1).join('.'))))
+    .sort(([a], [b]) =>
+      parameterSortKey(a.split(".").slice(1).join(".")).localeCompare(
+        parameterSortKey(b.split(".").slice(1).join(".")),
+      ),
+    )
     .map(([key, value]) => {
-      const [type, ...nameParts] = key.split('.');
-      const name = nameParts.join('.');
-      if (type === 'payload') return { type: 'payload', payload: value };
-      if (type === 'coupon_code') return { type: 'coupon_code', coupon_code: value };
+      const [type, ...nameParts] = key.split(".");
+      const name = nameParts.join(".");
+      if (type === "payload") return { type: "payload", payload: value };
+      if (type === "coupon_code")
+        return { type: "coupon_code", coupon_code: value };
       return cleanObject({
-        type: 'text',
+        type: "text",
         text: value,
         parameter_name: /^\d+$/.test(name) ? undefined : name,
       });
@@ -1172,44 +1620,56 @@ function parseCustomTemplateComponents(
   itemIndex: number,
 ): IDataObject[] {
   let parsed = value;
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       parsed = JSON.parse(value);
     } catch {
-      throw new NodeOperationError(context.getNode(), 'Custom template components must be valid JSON.', { itemIndex });
+      throw new NodeOperationError(
+        context.getNode(),
+        "Custom template components must be valid JSON.",
+        { itemIndex },
+      );
     }
   }
-  if (isRecord(parsed) && Array.isArray(parsed.components)) parsed = parsed.components;
+  if (isRecord(parsed) && Array.isArray(parsed.components))
+    parsed = parsed.components;
   if (!Array.isArray(parsed) || !parsed.every(isRecord)) {
     throw new NodeOperationError(
       context.getNode(),
-      'Custom template components must be an array or an object with a components array.',
+      "Custom template components must be an array or an object with a components array.",
       { itemIndex },
     );
   }
   return parsed;
 }
 
-function buildTextComponentFromNamedValues(type: 'header' | 'body', values: Record<string, string>): IDataObject | null {
+function buildTextComponentFromNamedValues(
+  type: "header" | "body",
+  values: Record<string, string>,
+): IDataObject | null {
   const parameters = buildTextParametersFromNamedValues(values);
   return parameters.length ? { type, parameters } : null;
 }
 
-function buildTextParametersFromNamedValues(values: Record<string, string>): IDataObject[] {
+function buildTextParametersFromNamedValues(
+  values: Record<string, string>,
+): IDataObject[] {
   return Object.entries(values)
     .sort(([a], [b]) => parameterSortKey(a).localeCompare(parameterSortKey(b)))
-    .map(([key, value]) => cleanObject({
-      type: 'text',
-      text: value,
-      parameter_name: /^\d+$/.test(key) ? undefined : key,
-    }));
+    .map(([key, value]) =>
+      cleanObject({
+        type: "text",
+        text: value,
+        parameter_name: /^\d+$/.test(key) ? undefined : key,
+      }),
+    );
 }
 
 function buildTemplateParameters(input: IDataObject): IDataObject {
   const output: IDataObject = {};
-  const header = readCollectionValues(input, 'header');
-  const body = readCollectionValues(input, 'body');
-  const button = readCollectionValues(input, 'button');
+  const header = readCollectionValues(input, "header");
+  const body = readCollectionValues(input, "body");
+  const button = readCollectionValues(input, "button");
   if (header.length) output.header = header;
   if (body.length) output.body = body;
   if (button.length) output.button = button;
@@ -1217,7 +1677,7 @@ function buildTemplateParameters(input: IDataObject): IDataObject {
 }
 
 function parameterSortKey(value: string): string {
-  return /^\d+$/.test(value) ? value.padStart(6, '0') : `z_${value}`;
+  return /^\d+$/.test(value) ? value.padStart(6, "0") : `z_${value}`;
 }
 
 function titleCase(value: string): string {
@@ -1225,7 +1685,7 @@ function titleCase(value: string): string {
 }
 
 function isRecord(value: unknown): value is IDataObject {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function buildKeyValueObject(input: IDataObject): IDataObject {
@@ -1233,10 +1693,10 @@ function buildKeyValueObject(input: IDataObject): IDataObject {
   const fields = input.field;
   if (!Array.isArray(fields)) return output;
   for (const field of fields) {
-    if (!field || typeof field !== 'object' || Array.isArray(field)) continue;
+    if (!field || typeof field !== "object" || Array.isArray(field)) continue;
     const name = (field as IDataObject).name;
-    if (typeof name !== 'string' || !name.trim()) continue;
-    output[name.trim()] = (field as IDataObject).value ?? '';
+    if (typeof name !== "string" || !name.trim()) continue;
+    output[name.trim()] = (field as IDataObject).value ?? "";
   }
   return output;
 }
@@ -1246,25 +1706,25 @@ function readCollectionValues(input: IDataObject, section: string): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) return '';
+      if (!item || typeof item !== "object" || Array.isArray(item)) return "";
       const raw = (item as IDataObject).value;
-      return typeof raw === 'string' ? raw.trim() : '';
+      return typeof raw === "string" ? raw.trim() : "";
     })
     .filter(Boolean);
 }
 
 function readTemplateString(template: IDataObject, key: string): string {
   const value = template[key];
-  return typeof value === 'string' ? value : '';
+  return typeof value === "string" ? value : "";
 }
 
 function readTemplateLanguage(template: IDataObject): string {
-  const direct = readTemplateString(template, 'language');
+  const direct = readTemplateString(template, "language");
   if (direct) return direct;
   const language = template.language;
-  if (language && typeof language === 'object' && !Array.isArray(language)) {
+  if (language && typeof language === "object" && !Array.isArray(language)) {
     const code = (language as IDataObject).code;
-    return typeof code === 'string' ? code : '';
+    return typeof code === "string" ? code : "";
   }
-  return '';
+  return "";
 }

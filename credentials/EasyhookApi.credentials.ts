@@ -3,49 +3,56 @@ import type {
   ICredentialTestRequest,
   ICredentialType,
   INodeProperties,
-} from 'n8n-workflow';
+  Icon,
+} from "n8n-workflow";
 
 export class EasyhookApi implements ICredentialType {
-  name = 'easyhookApi';
+  name = "easyhookApi";
 
-  displayName = 'Easyhook API';
+  displayName = "Easyhook API";
 
-  documentationUrl = 'https://easyhook.dev/docs';
+  icon: Icon = {
+    light: "file:../nodes/Easyhook/easyhook.svg",
+    dark: "file:../nodes/Easyhook/easyhook.dark.svg",
+  };
+
+  documentationUrl = "https://easyhook.dev/docs";
 
   properties: INodeProperties[] = [
     {
-      displayName: 'API Key',
-      name: 'apiKey',
-      type: 'string',
+      displayName: "API Key",
+      name: "apiKey",
+      type: "string",
       typeOptions: { password: true },
-      default: '',
+      default: "",
       required: true,
-      description: 'Your Easyhook API key from the Easyhook portal.',
+      description: "Your Easyhook API key from the Easyhook portal.",
     },
     {
-      displayName: 'API Base URL',
-      name: 'baseUrl',
-      type: 'string',
-      default: 'https://api.easyhook.dev',
+      displayName: "API Base URL",
+      name: "baseUrl",
+      type: "string",
+      default: "https://api.easyhook.dev",
       required: true,
-      description: 'Use the default production URL unless Easyhook support gives you another one.',
+      description:
+        "Use the default production URL unless Easyhook support gives you another one.",
     },
   ];
 
   authenticate: IAuthenticateGeneric = {
-    type: 'generic',
+    type: "generic",
     properties: {
       headers: {
-        Authorization: '=Bearer {{$credentials.apiKey}}',
+        Authorization: "=Bearer {{$credentials.apiKey}}",
       },
     },
   };
 
   test: ICredentialTestRequest = {
     request: {
-      baseURL: '={{$credentials.baseUrl}}',
-      url: '/v1/me',
-      method: 'GET',
+      baseURL: "={{$credentials.baseUrl}}",
+      url: "/v1/me",
+      method: "GET",
     },
   };
 }

@@ -1,6 +1,6 @@
 # n8n-nodes-easyhook
 
-Community node for using Easyhook from n8n.
+Official Easyhook integration for n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
@@ -200,10 +200,11 @@ Messenger and Instagram hooks are configured in the Easyhook portal with the pro
 ## Development
 
 ```bash
-cd packages/n8n-nodes-easyhook
-npm install
+npm ci
+npm run lint
+npm run typecheck
 npm run build
 npm pack --dry-run
 ```
 
-Before submitting for n8n verification, publish through GitHub Actions with npm provenance as required by n8n's current community node guidelines.
+Releases are published from GitHub Actions with npm provenance. See [CONTRIBUTING.md](CONTRIBUTING.md) for the validation and release workflow.
