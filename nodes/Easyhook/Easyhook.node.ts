@@ -318,7 +318,7 @@ export class Easyhook implements INodeType {
           { name: 'Choose From Easyhook', value: 'list' },
         ],
         default: 'manual',
-        description: 'Manual mode is the most reliable option. Choose From Easyhook loads approved templates and variables when your n8n instance can reach Easyhook.',
+        description: 'Choose a synchronized template or enter its approved name and language manually.',
         displayOptions: {
           show: {
             resource: ['message'],
@@ -388,7 +388,6 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
-            templateSource: ['list'],
           },
         },
       },
@@ -403,7 +402,7 @@ export class Easyhook implements INodeType {
         },
         required: false,
         typeOptions: {
-          loadOptionsDependsOn: ['from', 'templateSelection'],
+          loadOptionsDependsOn: ['from', 'templateSource', 'templateSelection', 'templateName', 'templateLanguage'],
           resourceMapper: {
             resourceMapperMethod: 'getTemplateVariables',
             mode: 'add',
@@ -421,7 +420,6 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
-            templateSource: ['list'],
             templateDataMode: ['mapped'],
           },
         },
@@ -437,7 +435,6 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
-            templateSource: ['list'],
             templateDataMode: ['custom'],
           },
         },
@@ -496,7 +493,7 @@ export class Easyhook implements INodeType {
           show: {
             resource: ['message'],
             operation: ['sendTemplate'],
-            templateSource: ['manual'],
+            templateSource: ['legacy_manual'],
           },
         },
       },
@@ -733,14 +730,31 @@ export class Easyhook implements INodeType {
     resourceMapping: {
       async getTemplateVariables(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
         const from = this.getCurrentNodeParameter('from') as string | undefined;
-        const rawSelection = this.getCurrentNodeParameter('templateSelection') as string | undefined;
-        if (!from || !rawSelection) return { fields: [] };
+        const source = this.getCurrentNodeParameter('templateSource') as string | undefined;
+        if (!from) return { fields: [] };
 
-        const selected = parseTemplateSelection(rawSelection);
-        const response = await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
+        const selected = source === 'manual'
+          ? {
+            name: String(this.getCurrentNodeParameter('templateName') ?? '').trim(),
+            language: String(this.getCurrentNodeParameter('templateLanguage') ?? '').trim(),
+          }
+          : parseTemplateSelection(String(this.getCurrentNodeParameter('templateSelection') ?? ''));
+        if (!readTemplateString(selected, 'name')) {
+          return { fields: [], emptyFieldsNotice: 'Enter or select a template to load its values.' };
+        }
+
+        const syncResponse = await easyhookRequest.call(this, 'POST', '/v1/templates/sync', { from });
+        const response = Object.prototype.hasOwnProperty.call(syncResponse, 'templates')
+          ? syncResponse
+          : await easyhookRequest.call(this, 'GET', '/v1/templates', undefined, { from });
         const templates = readArray(response, 'templates');
-        const template = templates.find((item) => templateMatchesSelection(item, selected));
-        if (!template) return { fields: [], emptyFieldsNotice: 'Select a template to load its variables.' };
+        const template = templates.find((item) => isApprovedTemplate(item) && templateMatchesSelection(item, selected));
+        if (!template) {
+          return {
+            fields: [],
+            emptyFieldsNotice: 'No approved template matches this name and language for the selected sender.',
+          };
+        }
 
         return {
           fields: extractTemplateVariableFields(template.components),
@@ -824,27 +838,21 @@ async function executeMessageOperation(this: IExecuteFunctions, operation: strin
         language: this.getNodeParameter('templateLanguage', itemIndex) as string,
       }
       : parseTemplateSelection(this.getNodeParameter('templateSelection', itemIndex) as string);
-    if (templateSource === 'list') {
-      const templateDataMode = this.getNodeParameter('templateDataMode', itemIndex, 'mapped') as string;
-      const components = templateDataMode === 'custom'
-        ? parseCustomTemplateComponents(this.getNodeParameter('templateCustomComponents', itemIndex, '[]'), this, itemIndex)
-        : buildTemplateComponentsFromMapper(
-          this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject,
-        );
-      return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
-        from,
-        to,
-        template,
-        components,
-        at,
-      }));
-    }
-    const visualParameters = buildTemplateParameters(this.getNodeParameter('templateVariables', itemIndex, {}) as IDataObject);
+    const templateDataMode = this.getNodeParameter('templateDataMode', itemIndex, 'mapped') as string;
+    const components = templateDataMode === 'custom'
+      ? parseCustomTemplateComponents(this.getNodeParameter('templateCustomComponents', itemIndex, '[]'), this, itemIndex)
+      : buildTemplateComponentsFromMapper(
+        this.getNodeParameter('templateVariableMapping.value', itemIndex, {}) as IDataObject,
+      );
+    const legacyParameters = templateSource === 'manual' && templateDataMode === 'mapped' && components.length === 0
+      ? buildTemplateParameters(this.getNodeParameter('templateVariables', itemIndex, {}) as IDataObject)
+      : undefined;
     return easyhookRequest.call(this, 'POST', '/v1/messages/template', cleanObject({
       from,
       to,
       template,
-      parameters: visualParameters,
+      components: legacyParameters && Object.keys(legacyParameters).length > 0 ? undefined : components,
+      parameters: legacyParameters && Object.keys(legacyParameters).length > 0 ? legacyParameters : undefined,
       at,
     }));
   }
