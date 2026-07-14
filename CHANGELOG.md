@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.7 - 2026-07-14
+
+- Document the complete WhatsApp coexistence history trigger setup, normalized payload, and disabled-history error.
+
 ## 0.2.6 - 2026-07-14
 
 - Use the official `WhatsApp` spelling consistently in node action labels.

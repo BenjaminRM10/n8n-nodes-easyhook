@@ -197,6 +197,46 @@ Useful event scopes:
 
 Messenger and Instagram hooks are configured in the Easyhook portal with the provider filter. In n8n you can also label a trigger as `messenger.message.*` or `instagram.message.*` for workflow clarity.
 
+### Receive Coexistence History
+
+Configure the **Easyhook Trigger** before connecting the WhatsApp Business App number or requesting coexistence sync:
+
+1. Select `Provider: WhatsApp`.
+2. Select `Event: Coexistence history (history.*)`.
+3. Choose the organization, WABA, or WhatsApp number scope.
+4. Activate the workflow.
+5. Allow history sharing in the WhatsApp Business App and keep the app open while synchronization starts.
+
+Easyhook creates the webhook subscription and stores its HMAC secret in n8n automatically. Do not create a second portal webhook. `message.*` only covers live messages; it does not include history imports.
+
+Each synchronized message starts one workflow execution. Historical inbound messages use `type: message.received`; historical outbound messages use `type: message.echo`. Both include `message.source: history`:
+
+```json
+{
+  "id": "event_uuid",
+  "type": "message.echo",
+  "channel": "whatsapp",
+  "account": { "id": "980912725115744", "phone": "5218661479075" },
+  "contact": { "id": "5214445087305" },
+  "message": {
+    "id": "wamid...",
+    "direction": "out",
+    "source": "history",
+    "type": "text",
+    "text": "Previous reply",
+    "history": {
+      "thread_id": "5214445087305",
+      "status": "READ",
+      "phase": 1,
+      "chunk_order": 2,
+      "progress": 80
+    }
+  }
+}
+```
+
+If the business disables history sharing, Meta can return error `2593109`; the trigger receives it as `type: sync.failed` under the same `history.*` selection.
+
 ## Development
 
 ```bash
