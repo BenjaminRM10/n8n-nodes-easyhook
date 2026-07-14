@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.4 - 2026-07-14
+
+- Embed the official icon artwork in the themed SVG assets so it renders reliably in isolated n8n package views.
+
 ## 0.2.3 - 2026-07-14
 
 - Replace the provisional SVG artwork with the optimized official Easyhook brand icon across nodes and credentials.
