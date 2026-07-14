@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.1 - 2026-07-14
+
+- Correct the package author email used for n8n Creator Portal ownership verification.
+
 ## 0.2.0 - 2026-07-13
 
 - Move the package to its dedicated public repository.
