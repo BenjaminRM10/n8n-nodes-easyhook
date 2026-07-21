@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
+## 0.2.9 - 2026-07-21
+
+- Align the package identity wording with n8n community package verification requirements.
+
 ## 0.2.7 - 2026-07-14
 
 - Document the complete WhatsApp coexistence history trigger setup, normalized payload, and disabled-history error.

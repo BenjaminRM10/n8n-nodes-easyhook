@@ -1,6 +1,6 @@
 # n8n-nodes-easyhook
 
-Official Easyhook integration for n8n.
+Easyhook integration for n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
