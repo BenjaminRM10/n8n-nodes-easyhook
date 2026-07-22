@@ -243,6 +243,12 @@ Easyhook delivers History and App State in signed batches of at most 100 events.
 
 Use `message.id` for idempotency because deliveries are at-least-once. Keep live auto-replies disabled when `message.source` is `history`. Media does not block the import: a historical message can first include `message.media.storage_status: pending`, followed later by `type: message.media_available` with the same `message.id` and a protected download URL.
 
+The same `history.*` trigger receives `sync.started`, `sync.progress`, `sync.completed`, and `sync.failed` lifecycle items. Wait for `sync.completed` instead of inferring completion from Meta's progress value. App State contact records are delivered under `smb_app_state_sync.*`; they can arrive before or after History, so use `contact.id` and `message.id` rather than array position to join and deduplicate records.
+
+History covers up to approximately 180 days and excludes group conversations. Historical media availability is normally limited to recent messages (approximately 14 days). Easyhook offers three import policies in the portal: messages only, recent media without video, and recent media including video. Missing or expired media never fails the message import.
+
+Only one synchronization runs per WhatsApp number. An organization may have any number of connected numbers, with up to two numbers importing concurrently for fair capacity sharing. Failed webhook deliveries retry five times and can be replayed without changing the original message IDs or idempotency keys.
+
 If the business disables history sharing, Meta can return error `2593109`; the trigger receives it as `type: sync.failed` under the same `history.*` selection.
 
 ## Development

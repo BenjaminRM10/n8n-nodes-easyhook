@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.11
+
+- Document coexistence sync lifecycle events, per-number concurrency, App State ordering, media policies, and retry-safe consumption.
+
 ## 0.2.10
 
 - Expand signed coexistence History and App State batches into individual n8n items.
