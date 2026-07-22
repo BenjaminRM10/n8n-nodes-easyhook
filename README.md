@@ -209,7 +209,7 @@ Configure the **Easyhook Trigger** before connecting the WhatsApp Business App n
 
 Easyhook creates the webhook subscription and stores its HMAC secret in n8n automatically. Do not create a second portal webhook. `message.*` only covers live messages; it does not include history imports.
 
-Each synchronized message starts one workflow execution. Historical inbound messages use `type: message.received`; historical outbound messages use `type: message.echo`. Both include `message.source: history`:
+Easyhook delivers History and App State in signed batches of at most 100 events. One batch starts one workflow execution, and the trigger expands every normalized event into a separate n8n item. This keeps large imports fast without creating one execution per historical message. Historical inbound messages use `type: message.received`; historical outbound messages use `type: message.echo`. Both include `message.source: history`, and every item includes `_sync` with its batch and progress metadata:
 
 ```json
 {
@@ -231,9 +231,17 @@ Each synchronized message starts one workflow execution. Historical inbound mess
       "chunk_order": 2,
       "progress": 80
     }
+  },
+  "_sync": {
+    "batch_id": "delivery_uuid",
+    "source": "history",
+    "progress": 80,
+    "count": 100
   }
 }
 ```
+
+Use `message.id` for idempotency because deliveries are at-least-once. Keep live auto-replies disabled when `message.source` is `history`. Media does not block the import: a historical message can first include `message.media.storage_status: pending`, followed later by `type: message.media_available` with the same `message.id` and a protected download URL.
 
 If the business disables history sharing, Meta can return error `2593109`; the trigger receives it as `type: sync.failed` under the same `history.*` selection.
 

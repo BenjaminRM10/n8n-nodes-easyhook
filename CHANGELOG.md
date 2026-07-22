@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.10
+
+- Expand signed coexistence History and App State batches into individual n8n items.
+- Document batching, idempotency, progress metadata, and asynchronous historical media.
+
 All notable changes to `n8n-nodes-easyhook` are documented here.
 
 ## 0.2.9 - 2026-07-21

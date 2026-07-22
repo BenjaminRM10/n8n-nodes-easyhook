@@ -266,16 +266,32 @@ export class EasyhookTrigger implements INodeType {
     }
 
     const body = this.getBodyData();
-    const json: IDataObject = {
-      ...body,
-    };
+    const sync = isDataObject(body.sync) ? body.sync : {};
+    const batchEvents = Array.isArray(body.events)
+      ? body.events.filter(isDataObject)
+      : [];
+    const items: INodeExecutionData[] = batchEvents.length
+      ? batchEvents.map((event) => ({
+          json: {
+            ...event,
+            _sync: {
+              batch_id: typeof body.id === "string" ? body.id : null,
+              ...sync,
+            },
+          },
+        }))
+      : [{ json: { ...body } }];
 
-    const workflowData: INodeExecutionData[][] = [[{ json }]];
+    const workflowData: INodeExecutionData[][] = [items];
     return {
       workflowData,
       webhookResponse: { ok: true },
     };
   }
+}
+
+function isDataObject(value: unknown): value is IDataObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 async function loadWebhookOptions(
