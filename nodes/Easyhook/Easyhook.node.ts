@@ -226,6 +226,11 @@ export class Easyhook implements INodeType {
             value: "cancel",
             action: "Cancel a scheduled message",
           },
+          {
+            name: "Get",
+            value: "get",
+            action: "Get a scheduled message",
+          },
         ],
         default: "cancel",
       },
@@ -809,7 +814,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["scheduledMessage"],
-            operation: ["cancel"],
+            operation: ["cancel", "get"],
           },
         },
       },
@@ -820,6 +825,22 @@ export class Easyhook implements INodeType {
         placeholder: "Add Option",
         default: {},
         options: [
+          {
+            displayName: "Client Reference",
+            name: "clientReference",
+            type: "string",
+            default: "",
+            description:
+              "Optional application identifier returned in scheduled-message lifecycle and delivery-status events",
+          },
+          {
+            displayName: "Idempotency Key",
+            name: "idempotencyKey",
+            type: "string",
+            default: "",
+            description:
+              "Stable key for safely retrying a scheduled send. Reusing it returns the original scheduled message instead of creating another task.",
+          },
           {
             displayName: "Return Raw Response",
             name: "returnRaw",
@@ -1009,6 +1030,16 @@ async function executeMessageOperation(
   itemIndex: number,
 ): Promise<IDataObject> {
   const from = this.getNodeParameter("from", itemIndex) as string;
+  const requestOptions = this.getNodeParameter(
+    "options",
+    itemIndex,
+    {},
+  ) as IDataObject;
+  const clientReference =
+    typeof requestOptions.clientReference === "string"
+      ? requestOptions.clientReference
+      : "";
+  const requestHeaders = idempotencyHeaders(requestOptions);
 
   if (operation === "sendText") {
     const to = this.getNodeParameter("to", itemIndex) as string;
@@ -1036,7 +1067,15 @@ async function executeMessageOperation(
       this,
       "POST",
       "/v1/messages/text",
-      cleanObject({ from, to, body, at }),
+      cleanObject({
+        from,
+        to,
+        body,
+        at,
+        client_reference: clientReference,
+      }),
+      undefined,
+      at ? requestHeaders : undefined,
     );
   }
 
@@ -1057,6 +1096,7 @@ async function executeMessageOperation(
       caption,
       filename,
       at,
+      client_reference: clientReference,
     });
     if (referenceType === "media_name")
       body.media_name = this.getNodeParameter("mediaName", itemIndex) as string;
@@ -1064,7 +1104,14 @@ async function executeMessageOperation(
       body.id = this.getNodeParameter("mediaId", itemIndex) as string;
     if (referenceType === "link")
       body.link = this.getNodeParameter("mediaLink", itemIndex) as string;
-    return easyhookRequest.call(this, "POST", "/v1/messages/media", body);
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/media",
+      body,
+      undefined,
+      at ? requestHeaders : undefined,
+    );
   }
 
   if (operation === "sendTemplate") {
@@ -1135,7 +1182,10 @@ async function executeMessageOperation(
             ? legacyParameters
             : undefined,
         at,
+        client_reference: clientReference,
       }),
+      undefined,
+      at ? requestHeaders : undefined,
     );
   }
 
@@ -1273,8 +1323,15 @@ async function executeScheduledMessageOperation(
   operation: string,
   itemIndex: number,
 ): Promise<IDataObject> {
+  const id = this.getNodeParameter("scheduledMessageId", itemIndex) as string;
+  if (operation === "get") {
+    return easyhookRequest.call(
+      this,
+      "GET",
+      `/v1/scheduled-messages/${encodeURIComponent(id)}`,
+    );
+  }
   if (operation === "cancel") {
-    const id = this.getNodeParameter("scheduledMessageId", itemIndex) as string;
     return easyhookRequest.call(
       this,
       "DELETE",
@@ -1286,6 +1343,14 @@ async function executeScheduledMessageOperation(
     `Unsupported scheduled message operation: ${operation}`,
     { itemIndex },
   );
+}
+
+function idempotencyHeaders(options: IDataObject): IDataObject | undefined {
+  const key =
+    typeof options.idempotencyKey === "string"
+      ? options.idempotencyKey.trim()
+      : "";
+  return key ? { "Idempotency-Key": key } : undefined;
 }
 
 function parseTemplateSelection(value: string): IDataObject {

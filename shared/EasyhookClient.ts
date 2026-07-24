@@ -21,6 +21,7 @@ export async function easyhookRequest(
   endpoint: string,
   body?: IDataObject,
   qs?: IDataObject,
+  headers?: IDataObject,
 ): Promise<IDataObject> {
   const credentials = await this.getCredentials("easyhookApi");
   const baseUrl = normalizeBaseUrl(
@@ -33,6 +34,7 @@ export async function easyhookRequest(
     url: `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`,
     qs,
     body,
+    headers,
     json: true,
   };
 

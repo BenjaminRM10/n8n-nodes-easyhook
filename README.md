@@ -10,7 +10,7 @@ Easyhook is a lightweight messaging API for WhatsApp Business Platform and other
 - Schedule messages with Easyhook's `at` parameter
 - Upload reusable media and send it later by `media_name`
 - List/sync templates and media
-- Cancel scheduled messages
+- Reconcile or cancel scheduled messages
 - Receive Easyhook webhook events in n8n with the Easyhook Trigger node
 
 ## Install
@@ -59,6 +59,14 @@ The trigger outputs the normalized Easyhook webhook JSON directly.
 - Body: `Hello from n8n`
 
 Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
+
+For scheduled text, media, or templates, add:
+
+- `Schedule At`: ISO 8601 execution time
+- `Options > Client Reference`: your application identifier
+- `Options > Idempotency Key`: a stable key reused only when retrying the same scheduled send; immediate sends do not use the scheduling idempotency contract
+
+Use resource **Scheduled Message**, operation **Get**, to reconcile the Easyhook status, Meta WAMID, and latest provider status. Operation **Cancel** only works before processing begins.
 
 ### Send Read Or Typing
 

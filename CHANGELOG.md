@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.12
+
+- Add stable client references and idempotency keys for scheduled sends.
+- Add scheduled-message lookup for reconciling the Easyhook state, Meta WAMID, and provider delivery status.
+
 ## 0.2.11
 
 - Document coexistence sync lifecycle events, per-number concurrency, App State ordering, media policies, and retry-safe consumption.
