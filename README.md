@@ -76,6 +76,9 @@ Use resource **Cancel Scheduled Message** to cancel a pending delivery before pr
 
 For a reaction, also set `To` and `Reaction`. Leave the reaction empty to remove it.
 
+To send a contextual WhatsApp reply, choose **WhatsApp Only → Reply to Message** and provide the original
+WhatsApp message ID, recipient, and reply text.
+
 ### Send Reusable Media
 
 First upload media:
@@ -204,6 +207,9 @@ Media links must use HTTPS and be downloadable by Meta without authentication. A
 - Return URL: optional HTTPS destination after completion
 
 `Get Onboarding URL` returns the hosted URL without sending a message. `Send Onboarding Link` creates the same session and sends its URL from the selected Easyhook WhatsApp number to `To`. Subscribe with **Easyhook Trigger** to onboarding events when the workflow must continue after the customer connects a number.
+
+Hosted links expire after one hour and are consumed after a successful connection. The sent message is
+localized by Easyhook and always includes the hosted URL.
 
 ### Webhook Automation
 

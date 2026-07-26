@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.17
+
+- Add contextual WhatsApp replies.
+- Remove the obsolete custom onboarding message field so sent onboarding messages always include the hosted URL.
+- Document the one-hour, one-time-use onboarding link contract.
+
 ## 0.2.16
 
 - Add WhatsApp reactions as a first-class action.

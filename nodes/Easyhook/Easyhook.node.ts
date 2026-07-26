@@ -24,6 +24,7 @@ const messageOperations = [
   "sendTyping",
   "sendConsent",
   "sendReaction",
+  "sendReply",
   "sendOnboarding",
 ];
 const recipientMessageOperations = [
@@ -33,6 +34,7 @@ const recipientMessageOperations = [
   "sendFlow",
   "sendConsent",
   "sendReaction",
+  "sendReply",
   "sendOnboarding",
 ];
 const templateLanguageOptions: INodePropertyOptions[] = [
@@ -175,6 +177,11 @@ export class Easyhook implements INodeType {
             name: "Get Onboarding URL",
             value: "createOnboarding",
             action: "Get a hosted onboarding URL",
+          },
+          {
+            name: "Reply to Message",
+            value: "sendReply",
+            action: "Reply to a message",
           },
           {
             name: "Send Flow",
@@ -332,7 +339,22 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["sendRead", "sendTyping", "sendReaction"],
+            operation: ["sendRead", "sendTyping", "sendReaction", "sendReply"],
+          },
+        },
+      },
+      {
+        displayName: "Reply",
+        name: "replyBody",
+        type: "string",
+        typeOptions: { rows: 3 },
+        default: "",
+        required: true,
+        description: "Text sent as a contextual reply to the selected WhatsApp message",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["sendReply"],
           },
         },
       },
@@ -810,19 +832,6 @@ export class Easyhook implements INodeType {
           show: {
             resource: ["whatsapp"],
             operation: ["createOnboarding", "sendOnboarding"],
-          },
-        },
-      },
-      {
-        displayName: "Message",
-        name: "onboardingMessage",
-        type: "string",
-        default: "",
-        description: "Optional text sent with the generated onboarding URL",
-        displayOptions: {
-          show: {
-            resource: ["whatsapp"],
-            operation: ["sendOnboarding"],
           },
         },
       },
@@ -1438,6 +1447,18 @@ async function executeMessageOperation(
     });
   }
 
+  if (operation === "sendReply") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const messageId = this.getNodeParameter("messageId", itemIndex) as string;
+    const body = this.getNodeParameter("replyBody", itemIndex) as string;
+    return easyhookRequest.call(this, "POST", "/v1/messages/reply", {
+      from,
+      to,
+      message_id: messageId,
+      body,
+    });
+  }
+
   if (operation === "sendOnboarding") {
     const to = this.getNodeParameter("to", itemIndex) as string;
     return easyhookRequest.call(
@@ -1458,11 +1479,6 @@ async function executeMessageOperation(
         ) as string,
         return_url: this.getNodeParameter(
           "onboardingReturnUrl",
-          itemIndex,
-          "",
-        ) as string,
-        body: this.getNodeParameter(
-          "onboardingMessage",
           itemIndex,
           "",
         ) as string,
