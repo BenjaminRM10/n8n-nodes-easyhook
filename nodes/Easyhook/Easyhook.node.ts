@@ -189,7 +189,7 @@ export class Easyhook implements INodeType {
           {
             name: "Send Opt-In or Opt-Out",
             value: "sendConsent",
-            action: "Send a WhatsApp consent flow",
+            action: "Send a consent flow",
           },
           {
             name: "Send Reaction",
