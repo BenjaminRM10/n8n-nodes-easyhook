@@ -138,7 +138,7 @@ export class Easyhook implements INodeType {
             value: "scheduledMessage",
           },
           { name: "Media", value: "media" },
-          { name: "Message Actions", value: "message" },
+          { name: "Message Action", value: "message" },
           { name: "Template", value: "template" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],

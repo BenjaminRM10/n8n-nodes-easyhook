@@ -4,7 +4,7 @@ Easyhook integration for n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
-- `Message Actions` groups cross-channel text and media actions.
+- `Message Action` groups cross-channel text and media actions.
 - `WhatsApp Only` groups templates, Flows, consent, onboarding links, read receipts, and typing indicators.
 - Use standard or humanized WhatsApp text delivery
 - Schedule messages with Easyhook's `at` parameter
@@ -51,7 +51,7 @@ The trigger outputs the normalized Easyhook webhook JSON directly.
 
 ### Send Text
 
-- Resource: `Message Actions`
+- Resource: `Message Action`
 - Operation: `Send Text`
 - From: `5218661479075`
 - To: `5215660069997`
@@ -88,7 +88,7 @@ First upload media:
 
 Then send it:
 
-- Resource: `Message Actions`
+- Resource: `Message Action`
 - Operation: `Send Media`
 - From: your WhatsApp sender number
 - To: customer WhatsApp ID
