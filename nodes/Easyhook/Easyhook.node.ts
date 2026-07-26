@@ -23,6 +23,8 @@ const messageOperations = [
   "sendRead",
   "sendTyping",
   "sendConsent",
+  "sendReaction",
+  "sendOnboarding",
 ];
 const recipientMessageOperations = [
   "sendText",
@@ -30,6 +32,8 @@ const recipientMessageOperations = [
   "sendTemplate",
   "sendFlow",
   "sendConsent",
+  "sendReaction",
+  "sendOnboarding",
 ];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
@@ -168,9 +172,9 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["whatsapp"] } },
         options: [
           {
-            name: "Create Onboarding Link",
+            name: "Get Onboarding URL",
             value: "createOnboarding",
-            action: 'Create a hosted whats app onboarding link',
+            action: "Get a hosted onboarding URL",
           },
           {
             name: "Send Flow",
@@ -178,9 +182,19 @@ export class Easyhook implements INodeType {
             action: "Send an interactive flow",
           },
           {
+            name: "Send Onboarding Link",
+            value: "sendOnboarding",
+            action: "Create and send a hosted onboarding link",
+          },
+          {
             name: "Send Opt-In or Opt-Out",
             value: "sendConsent",
-            action: 'Send a whats app consent flow',
+            action: "Send a WhatsApp consent flow",
+          },
+          {
+            name: "Send Reaction",
+            value: "sendReaction",
+            action: "React to a message",
           },
           {
             name: "Send Read Receipt",
@@ -318,7 +332,20 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["sendRead", "sendTyping"],
+            operation: ["sendRead", "sendTyping", "sendReaction"],
+          },
+        },
+      },
+      {
+        displayName: "Reaction",
+        name: "reactionEmoji",
+        type: "string",
+        default: "👍",
+        description: "Emoji to add. Leave empty to remove the current reaction.",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["sendReaction"],
           },
         },
       },
@@ -751,32 +778,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["createOnboarding"],
-          },
-        },
-      },
-      {
-        displayName: "Customer Name",
-        name: "onboardingCustomerName",
-        type: "string",
-        default: "",
-        description: "Optional reference shown in the onboarding session",
-        displayOptions: {
-          show: {
-            resource: ["whatsapp"],
-            operation: ["createOnboarding"],
-          },
-        },
-      },
-      {
-        displayName: "Customer Email",
-        name: "onboardingCustomerEmail",
-        type: "string",
-        default: "",
-        displayOptions: {
-          show: {
-            resource: ["whatsapp"],
-            operation: ["createOnboarding"],
+            operation: ["createOnboarding", "sendOnboarding"],
           },
         },
       },
@@ -792,7 +794,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["createOnboarding"],
+            operation: ["createOnboarding", "sendOnboarding"],
           },
         },
       },
@@ -807,7 +809,20 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["createOnboarding"],
+            operation: ["createOnboarding", "sendOnboarding"],
+          },
+        },
+      },
+      {
+        displayName: "Message",
+        name: "onboardingMessage",
+        type: "string",
+        default: "",
+        description: "Optional text sent with the generated onboarding URL",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["sendOnboarding"],
           },
         },
       },
@@ -1208,16 +1223,6 @@ async function executeMessageOperation(
           "onboardingSignupMode",
           itemIndex,
         ) as string,
-        customer_name: this.getNodeParameter(
-          "onboardingCustomerName",
-          itemIndex,
-          "",
-        ) as string,
-        customer_email: this.getNodeParameter(
-          "onboardingCustomerEmail",
-          itemIndex,
-          "",
-        ) as string,
         language: this.getNodeParameter(
           "onboardingLanguage",
           itemIndex,
@@ -1414,11 +1419,55 @@ async function executeMessageOperation(
   if (operation === "sendConsent") {
     const to = this.getNodeParameter("to", itemIndex) as string;
     const mode = this.getNodeParameter("consentMode", itemIndex) as string;
-    return easyhookRequest.call(this, "POST", "/v1/consent/send-flow", {
+    return easyhookRequest.call(this, "POST", "/v1/consent", {
       from,
       to,
       mode,
     });
+  }
+
+  if (operation === "sendReaction") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const messageId = this.getNodeParameter("messageId", itemIndex) as string;
+    const emoji = this.getNodeParameter("reactionEmoji", itemIndex, "") as string;
+    return easyhookRequest.call(this, "POST", "/v1/messages/reaction", {
+      from,
+      to,
+      message_id: messageId,
+      emoji,
+    });
+  }
+
+  if (operation === "sendOnboarding") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/onboarding/sessions/send",
+      cleanObject({
+        from,
+        to,
+        signup_mode: this.getNodeParameter(
+          "onboardingSignupMode",
+          itemIndex,
+        ) as string,
+        language: this.getNodeParameter(
+          "onboardingLanguage",
+          itemIndex,
+          "es",
+        ) as string,
+        return_url: this.getNodeParameter(
+          "onboardingReturnUrl",
+          itemIndex,
+          "",
+        ) as string,
+        body: this.getNodeParameter(
+          "onboardingMessage",
+          itemIndex,
+          "",
+        ) as string,
+      }),
+    );
   }
 
   if (operation === "sendRead") {

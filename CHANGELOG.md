@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.15
+
+- Add WhatsApp reactions as a first-class action.
+- Add separate operations to get or send a hosted onboarding URL.
+- Select WhatsApp API or Coexistence when creating onboarding.
+- Use the canonical consent endpoint.
+
 ## 0.2.12
 
 - Add stable client references and idempotency keys for scheduled sends.

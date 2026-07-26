@@ -67,12 +67,14 @@ For scheduled text, media, or templates, add:
 
 Use resource **Cancel Scheduled Message** to cancel a pending delivery before processing begins.
 
-### Send Read Or Typing
+### Send Read, Typing, Or Reaction
 
 - Resource: `WhatsApp Only`
-- Operation: `Send Read Receipt` or `Send Typing Indicator`
+- Operation: `Send Read Receipt`, `Send Typing Indicator`, or `Send Reaction`
 - From: your WhatsApp sender number
 - Inbound Message ID: the inbound WhatsApp `wamid`
+
+For a reaction, also set `To` and `Reaction`. Leave the reaction empty to remove it.
 
 ### Send Reusable Media
 
@@ -193,16 +195,15 @@ Media links must use HTTPS and be downloadable by Meta without authentication. A
 - To: customer WhatsApp number
 - Consent Flow: `Opt-In` or `Opt-Out`
 
-### Create Hosted Onboarding
+### Hosted Onboarding
 
 - Resource: `WhatsApp Only`
-- Operation: `Create Onboarding Link`
+- Operation: `Get Onboarding URL` or `Send Onboarding Link`
 - Connection: `WhatsApp Coexistence` or `WhatsApp Business API`
-- Customer Name and Customer Email: optional customer reference
 - Language: `Spanish` or `English`
 - Return URL: optional HTTPS destination after completion
 
-Easyhook returns the hosted onboarding URL. Subscribe with **Easyhook Trigger** to onboarding events when the workflow must continue after the customer connects a number.
+`Get Onboarding URL` returns the hosted URL without sending a message. `Send Onboarding Link` creates the same session and sends its URL from the selected Easyhook WhatsApp number to `To`. Subscribe with **Easyhook Trigger** to onboarding events when the workflow must continue after the customer connects a number.
 
 ### Webhook Automation
 
