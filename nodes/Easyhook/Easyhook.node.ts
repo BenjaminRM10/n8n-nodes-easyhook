@@ -22,12 +22,14 @@ const messageOperations = [
   "sendFlow",
   "sendRead",
   "sendTyping",
+  "sendConsent",
 ];
 const recipientMessageOperations = [
   "sendText",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
+  "sendConsent",
 ];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
@@ -131,9 +133,12 @@ export class Easyhook implements INodeType {
         type: "options",
         noDataExpression: true,
         options: [
+          {
+            name: "Cancel Scheduled Message",
+            value: "scheduledMessage",
+          },
           { name: "Media", value: "media" },
-          { name: "Message", value: "message" },
-          { name: "Scheduled Message", value: "scheduledMessage" },
+          { name: "Message Actions", value: "message" },
           { name: "Template", value: "template" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
@@ -163,9 +168,19 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["whatsapp"] } },
         options: [
           {
+            name: "Create Onboarding Link",
+            value: "createOnboarding",
+            action: 'Create a hosted whats app onboarding link',
+          },
+          {
             name: "Send Flow",
             value: "sendFlow",
             action: "Send an interactive flow",
+          },
+          {
+            name: "Send Opt-In or Opt-Out",
+            value: "sendConsent",
+            action: 'Send a whats app consent flow',
           },
           {
             name: "Send Read Receipt",
@@ -226,22 +241,20 @@ export class Easyhook implements INodeType {
             value: "cancel",
             action: "Cancel a scheduled message",
           },
-          {
-            name: "Get",
-            value: "get",
-            action: "Get a scheduled message",
-          },
         ],
         default: "cancel",
       },
       {
-        displayName: "From",
+        displayName: 'From Name or ID',
         name: "from",
-        type: "string",
+        type: "options",
+        typeOptions: {
+          loadOptionsMethod: "getSenders",
+        },
         default: "",
         required: true,
         description:
-          "Easyhook sender number or channel identifier. Use digits for WhatsApp when possible.",
+          'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
             resource: ["message", "whatsapp", "media", "template"],
@@ -304,8 +317,8 @@ export class Easyhook implements INodeType {
           "Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.",
         displayOptions: {
           show: {
-            resource: ["message", "whatsapp"],
-            operation: ["sendText", "sendRead", "sendTyping"],
+            resource: ["whatsapp"],
+            operation: ["sendRead", "sendTyping"],
           },
         },
       },
@@ -364,11 +377,17 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: "Media Name",
+        displayName: 'Media Name or ID',
         name: "mediaName",
-        type: "string",
+        type: "options",
+        typeOptions: {
+          loadOptionsMethod: "getMedia",
+          loadOptionsDependsOn: ["from"],
+        },
         default: "",
         required: true,
+        description:
+          'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
             resource: ["message"],
@@ -705,6 +724,94 @@ export class Easyhook implements INodeType {
         },
       },
       {
+        displayName: "Consent Flow",
+        name: "consentMode",
+        type: "options",
+        options: [
+          { name: "Opt-In", value: "opt_in" },
+          { name: "Opt-Out", value: "opt_out" },
+        ],
+        default: "opt_in",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["sendConsent"],
+          },
+        },
+      },
+      {
+        displayName: "Connection",
+        name: "onboardingSignupMode",
+        type: "options",
+        options: [
+          { name: "WhatsApp Business API", value: "cloud_api" },
+          { name: "WhatsApp Coexistence", value: "coexistence" },
+        ],
+        default: "coexistence",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["createOnboarding"],
+          },
+        },
+      },
+      {
+        displayName: "Customer Name",
+        name: "onboardingCustomerName",
+        type: "string",
+        default: "",
+        description: "Optional reference shown in the onboarding session",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["createOnboarding"],
+          },
+        },
+      },
+      {
+        displayName: "Customer Email",
+        name: "onboardingCustomerEmail",
+        type: "string",
+        default: "",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["createOnboarding"],
+          },
+        },
+      },
+      {
+        displayName: "Language",
+        name: "onboardingLanguage",
+        type: "options",
+        options: [
+          { name: "English", value: "en" },
+          { name: "Spanish", value: "es" },
+        ],
+        default: "es",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["createOnboarding"],
+          },
+        },
+      },
+      {
+        displayName: "Return URL",
+        name: "onboardingReturnUrl",
+        type: "string",
+        default: "",
+        placeholder: "https://app.example.com/settings/whatsapp",
+        description:
+          "Optional HTTPS URL used after the customer completes onboarding",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["createOnboarding"],
+          },
+        },
+      },
+      {
         displayName: "Media Name",
         name: "uploadName",
         type: "string",
@@ -814,7 +921,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["scheduledMessage"],
-            operation: ["cancel", "get"],
+            operation: ["cancel"],
           },
         },
       },
@@ -854,6 +961,68 @@ export class Easyhook implements INodeType {
 
   methods = {
     loadOptions: {
+      async getSenders(
+        this: ILoadOptionsFunctions,
+      ): Promise<INodePropertyOptions[]> {
+        const responses = await Promise.all([
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "whatsapp", scope_type: "phone" },
+          ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "messenger", scope_type: "channel" },
+          ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "instagram", scope_type: "channel" },
+          ),
+        ]);
+        const seen = new Set<string>();
+        return responses
+          .flatMap((response) => readArray(response, "scope_identifiers"))
+          .flatMap((option) => {
+            const name = typeof option.name === "string" ? option.name : "";
+            const value = typeof option.value === "string" ? option.value : "";
+            if (!name || !value || seen.has(value)) return [];
+            seen.add(value);
+            return [{ name, value }];
+          });
+      },
+      async getMedia(
+        this: ILoadOptionsFunctions,
+      ): Promise<INodePropertyOptions[]> {
+        const from = this.getCurrentNodeParameter("from") as string | undefined;
+        if (!from) return [];
+        const response = await easyhookRequest.call(
+          this,
+          "GET",
+          "/v1/media",
+          undefined,
+          { from },
+        );
+        return readArray(response, "media").flatMap((item) => {
+          const name = typeof item.name === "string" ? item.name : "";
+          const type = typeof item.type === "string" ? item.type : "";
+          return name
+            ? [
+                {
+                  name: [name, type].filter(Boolean).join(" · "),
+                  value: name,
+                },
+              ]
+            : [];
+        });
+      },
       async getTemplates(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
@@ -1029,6 +1198,40 @@ async function executeMessageOperation(
   operation: string,
   itemIndex: number,
 ): Promise<IDataObject> {
+  if (operation === "createOnboarding") {
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/onboarding/sessions",
+      cleanObject({
+        signup_mode: this.getNodeParameter(
+          "onboardingSignupMode",
+          itemIndex,
+        ) as string,
+        customer_name: this.getNodeParameter(
+          "onboardingCustomerName",
+          itemIndex,
+          "",
+        ) as string,
+        customer_email: this.getNodeParameter(
+          "onboardingCustomerEmail",
+          itemIndex,
+          "",
+        ) as string,
+        language: this.getNodeParameter(
+          "onboardingLanguage",
+          itemIndex,
+          "es",
+        ) as string,
+        return_url: this.getNodeParameter(
+          "onboardingReturnUrl",
+          itemIndex,
+          "",
+        ) as string,
+      }),
+    );
+  }
+
   const from = this.getNodeParameter("from", itemIndex) as string;
   const requestOptions = this.getNodeParameter(
     "options",
@@ -1208,6 +1411,16 @@ async function executeMessageOperation(
     );
   }
 
+  if (operation === "sendConsent") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const mode = this.getNodeParameter("consentMode", itemIndex) as string;
+    return easyhookRequest.call(this, "POST", "/v1/consent/send-flow", {
+      from,
+      to,
+      mode,
+    });
+  }
+
   if (operation === "sendRead") {
     const messageId = this.getNodeParameter("messageId", itemIndex) as string;
     return easyhookRequest.call(
@@ -1324,13 +1537,6 @@ async function executeScheduledMessageOperation(
   itemIndex: number,
 ): Promise<IDataObject> {
   const id = this.getNodeParameter("scheduledMessageId", itemIndex) as string;
-  if (operation === "get") {
-    return easyhookRequest.call(
-      this,
-      "GET",
-      `/v1/scheduled-messages/${encodeURIComponent(id)}`,
-    );
-  }
   if (operation === "cancel") {
     return easyhookRequest.call(
       this,

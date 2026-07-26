@@ -4,13 +4,13 @@ Easyhook integration for n8n.
 
 Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
 
-- `Message` groups cross-channel text and media actions.
-- `WhatsApp Only` groups templates, Flows, read receipts, and typing indicators.
+- `Message Actions` groups cross-channel text and media actions.
+- `WhatsApp Only` groups templates, Flows, consent, onboarding links, read receipts, and typing indicators.
 - Use standard or humanized WhatsApp text delivery
 - Schedule messages with Easyhook's `at` parameter
 - Upload reusable media and send it later by `media_name`
 - List/sync templates and media
-- Reconcile or cancel scheduled messages
+- Cancel scheduled messages before processing begins
 - Receive Easyhook webhook events in n8n with the Easyhook Trigger node
 
 ## Install
@@ -28,7 +28,6 @@ For self-hosted n8n, you can also install it manually in your n8n custom nodes f
 Create an **Easyhook API** credential:
 
 - API Key: your `eh_live_...` key from Easyhook
-- API Base URL: `https://api.easyhook.dev`
 
 n8n validates the credential with `GET /v1/me`, so no WhatsApp number is needed just to test the API key.
 
@@ -52,13 +51,13 @@ The trigger outputs the normalized Easyhook webhook JSON directly.
 
 ### Send Text
 
-- Resource: `Message`
+- Resource: `Message Actions`
 - Operation: `Send Text`
 - From: `5218661479075`
 - To: `5215660069997`
 - Body: `Hello from n8n`
 
-Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. If you already know the inbound WhatsApp `wamid`, put it in **Inbound Message ID**; otherwise Easyhook uses the latest inbound message from `To`.
+Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. Easyhook uses the latest inbound message from `To`.
 
 For scheduled text, media, or templates, add:
 
@@ -66,7 +65,7 @@ For scheduled text, media, or templates, add:
 - `Options > Client Reference`: your application identifier
 - `Options > Idempotency Key`: a stable key reused only when retrying the same scheduled send; immediate sends do not use the scheduling idempotency contract
 
-Use resource **Scheduled Message**, operation **Get**, to reconcile the Easyhook status, Meta WAMID, and latest provider status. Operation **Cancel** only works before processing begins.
+Use resource **Cancel Scheduled Message** to cancel a pending delivery before processing begins.
 
 ### Send Read Or Typing
 
@@ -89,7 +88,7 @@ First upload media:
 
 Then send it:
 
-- Resource: `Message`
+- Resource: `Message Actions`
 - Operation: `Send Media`
 - From: your WhatsApp sender number
 - To: customer WhatsApp ID
@@ -185,6 +184,25 @@ Media links must use HTTPS and be downloadable by Meta without authentication. A
 - Message Body: the text above the flow button
 - Button Text: the flow button label
 - Flow Data: optional key/value fields sent as the flow payload
+
+### Send Consent
+
+- Resource: `WhatsApp Only`
+- Operation: `Send Opt-In or Opt-Out`
+- From: your WhatsApp sender number
+- To: customer WhatsApp number
+- Consent Flow: `Opt-In` or `Opt-Out`
+
+### Create Hosted Onboarding
+
+- Resource: `WhatsApp Only`
+- Operation: `Create Onboarding Link`
+- Connection: `WhatsApp Coexistence` or `WhatsApp Business API`
+- Customer Name and Customer Email: optional customer reference
+- Language: `Spanish` or `English`
+- Return URL: optional HTTPS destination after completion
+
+Easyhook returns the hosted onboarding URL. Subscribe with **Easyhook Trigger** to onboarding events when the workflow must continue after the customer connects a number.
 
 ### Webhook Automation
 

@@ -16,7 +16,7 @@ export class EasyhookApi implements ICredentialType {
     dark: "file:../nodes/Easyhook/easyhook.dark.svg",
   };
 
-  documentationUrl = "https://easyhook.dev/docs";
+  documentationUrl = "https://docs.easyhook.dev/n8n";
 
   properties: INodeProperties[] = [
     {
@@ -27,15 +27,6 @@ export class EasyhookApi implements ICredentialType {
       default: "",
       required: true,
       description: "Your Easyhook API key from the Easyhook portal.",
-    },
-    {
-      displayName: "API Base URL",
-      name: "baseUrl",
-      type: "string",
-      default: "https://api.easyhook.dev",
-      required: true,
-      description:
-        "Use the default production URL unless Easyhook support gives you another one.",
     },
   ];
 
@@ -50,7 +41,7 @@ export class EasyhookApi implements ICredentialType {
 
   test: ICredentialTestRequest = {
     request: {
-      baseURL: "={{$credentials.baseUrl}}",
+      baseURL: "https://api.easyhook.dev",
       url: "/v1/me",
       method: "GET",
     },

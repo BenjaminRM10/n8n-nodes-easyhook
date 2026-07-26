@@ -23,12 +23,7 @@ export async function easyhookRequest(
   qs?: IDataObject,
   headers?: IDataObject,
 ): Promise<IDataObject> {
-  const credentials = await this.getCredentials("easyhookApi");
-  const baseUrl = normalizeBaseUrl(
-    typeof credentials.baseUrl === "string"
-      ? credentials.baseUrl
-      : "https://api.easyhook.dev",
-  );
+  const baseUrl = "https://api.easyhook.dev";
   const options: IHttpRequestOptions = {
     method,
     url: `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`,
@@ -47,14 +42,6 @@ export async function easyhookRequest(
   } catch (error) {
     throw new NodeApiError(this.getNode(), error as JsonObject);
   }
-}
-
-function normalizeBaseUrl(value: string): string {
-  const trimmed = value.trim() || "https://api.easyhook.dev";
-  const withProtocol = /^https?:\/\//i.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
-  return withProtocol.replace(/\/+$/, "").replace(/\/v1$/i, "");
 }
 
 export function cleanObject(input: IDataObject): IDataObject {
