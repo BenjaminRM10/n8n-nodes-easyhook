@@ -365,7 +365,7 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         description:
-          "Optional message.id from an inbound Easyhook email event; this is the simplest way to preserve the thread",
+          "Optional message ID from an inbound Easyhook email event; this is the simplest way to preserve the thread",
         displayOptions: {
           show: {
             resource: ["message"],
