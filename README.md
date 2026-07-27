@@ -2,7 +2,9 @@
 
 Easyhook integration for n8n.
 
-Easyhook is a lightweight messaging API for WhatsApp Business Platform and other Meta messaging channels. This node focuses on the workflows developers normally automate:
+Easyhook is a lightweight multichannel messaging API for WhatsApp, Telegram,
+Gmail, Outlook, and generic IMAP/SMTP email. This node focuses on the workflows
+developers normally automate:
 
 - `Message Action` groups cross-channel text and media actions.
 - `WhatsApp Only` groups templates, Flows, consent, onboarding links, read receipts, and typing indicators.
@@ -66,6 +68,26 @@ For scheduled text, media, or templates, add:
 - `Options > Idempotency Key`: a stable key reused only when retrying the same scheduled send; immediate sends do not use the scheduling idempotency contract
 
 Use resource **Cancel Scheduled Message** to cancel a pending delivery before processing begins.
+
+### Send Email
+
+- Resource: `Message Action`
+- Operation: `Send Email`
+- From: select a connected Gmail, Outlook, or IMAP/SMTP address
+- To: recipient email address
+- Subject: email subject
+- Body: plain-text message
+- HTML: optional rich body
+- Reply To Message ID: optional inbound `message.id` (recommended for replies)
+- Thread ID: optional provider thread identifier from an inbound webhook
+- In-Reply-To: optional `message.message_id_header` of the email being answered
+- References: optional `message.references` from the inbound email
+
+All email providers use `POST /v1/messages/email` and return the same normalized
+response. Use the inbound event's `message.thread_id`,
+`message.message_id_header`, `message.in_reply_to`, and `message.references`
+when a workflow needs to preserve a reply thread. Treat inbound
+`message.html` as untrusted content.
 
 ### Send Read, Typing, Or Reaction
 
@@ -217,7 +239,8 @@ Easyhook webhooks are handled with **Easyhook Trigger**. It is not a polling nod
 
 Useful event scopes:
 
-- `message.*`: incoming WhatsApp/Messenger/Instagram messages
+- `message.*`: incoming messages from the selected provider, including
+  WhatsApp, Messenger, Instagram, Telegram, Gmail, Outlook, and IMAP/SMTP
 - `status.*`: message delivery/read/failure status
 - `template.*`: template status changes
 - `flow.submission.*`: WhatsApp Flow responses

@@ -17,6 +17,7 @@ import {
 
 const messageOperations = [
   "sendText",
+  "sendEmail",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
@@ -29,6 +30,7 @@ const messageOperations = [
 ];
 const recipientMessageOperations = [
   "sendText",
+  "sendEmail",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
@@ -157,6 +159,11 @@ export class Easyhook implements INodeType {
         noDataExpression: true,
         displayOptions: { show: { resource: ["message"] } },
         options: [
+          {
+            name: "Send Email",
+            value: "sendEmail",
+            action: "Send an email",
+          },
           { name: "Send Media", value: "sendMedia", action: "Send media" },
           {
             name: "Send Text",
@@ -308,6 +315,102 @@ export class Easyhook implements INodeType {
           show: {
             resource: ["message"],
             operation: ["sendText"],
+          },
+        },
+      },
+      {
+        displayName: "Subject",
+        name: "emailSubject",
+        type: "string",
+        default: "",
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Body",
+        name: "emailBody",
+        type: "string",
+        typeOptions: { rows: 4 },
+        default: "",
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "HTML",
+        name: "emailHtml",
+        type: "string",
+        typeOptions: { rows: 6 },
+        default: "",
+        description: "Optional HTML version of the email",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Reply To Message ID",
+        name: "emailReplyToMessageId",
+        type: "string",
+        default: "",
+        description:
+          "Optional message.id from an inbound Easyhook email event; this is the simplest way to preserve the thread",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Thread ID",
+        name: "emailThreadId",
+        type: "string",
+        default: "",
+        description: "Optional provider thread ID when replying to an existing email",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "In-Reply-To",
+        name: "emailInReplyTo",
+        type: "string",
+        default: "",
+        description:
+          "Optional Message-ID header from the email being answered",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
+          },
+        },
+      },
+      {
+        displayName: "References",
+        name: "emailReferences",
+        type: "string",
+        default: "",
+        description:
+          "Optional space-separated Message-ID headers that identify the email thread",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendEmail"],
           },
         },
       },
@@ -1010,6 +1113,34 @@ export class Easyhook implements INodeType {
             undefined,
             { provider: "instagram", scope_type: "channel" },
           ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "telegram", scope_type: "channel" },
+          ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "gmail", scope_type: "channel" },
+          ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "outlook", scope_type: "channel" },
+          ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "imap_smtp", scope_type: "channel" },
+          ),
         ]);
         const seen = new Set<string>();
         return responses
@@ -1293,6 +1424,38 @@ async function executeMessageOperation(
       }),
       undefined,
       at ? requestHeaders : undefined,
+    );
+  }
+
+  if (operation === "sendEmail") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/email",
+      cleanObject({
+        from,
+        to,
+        subject: this.getNodeParameter("emailSubject", itemIndex) as string,
+        body: this.getNodeParameter("emailBody", itemIndex) as string,
+        html: this.getNodeParameter("emailHtml", itemIndex, "") as string,
+        reply_to_message_id: this.getNodeParameter(
+          "emailReplyToMessageId",
+          itemIndex,
+          "",
+        ) as string,
+        thread_id: this.getNodeParameter("emailThreadId", itemIndex, "") as string,
+        in_reply_to: this.getNodeParameter(
+          "emailInReplyTo",
+          itemIndex,
+          "",
+        ) as string,
+        references: this.getNodeParameter(
+          "emailReferences",
+          itemIndex,
+          "",
+        ) as string,
+      }),
     );
   }
 
