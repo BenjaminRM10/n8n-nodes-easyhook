@@ -279,7 +279,7 @@ export class Easyhook implements INodeType {
         default: "cancel",
       },
       {
-        displayName: "From Channel",
+        displayName: 'From Channel Name or ID',
         name: "from",
         type: "options",
         typeOptions: {
@@ -304,7 +304,7 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: "From Email",
+        displayName: 'From Email Name or ID',
         name: "from",
         type: "options",
         typeOptions: {
@@ -312,8 +312,7 @@ export class Easyhook implements INodeType {
         },
         default: "",
         required: true,
-        description:
-          'Choose a connected Gmail, Outlook, or IMAP/SMTP address, or specify one using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+        description: 'Choose a connected Gmail, Outlook, or IMAP/SMTP address, or specify one using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
         displayOptions: {
           show: {
             resource: ["message"],
@@ -411,8 +410,7 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         required: true,
-        description:
-          "Use message.id from the inbound Easyhook Trigger item. Easyhook preserves the Gmail, Outlook, or IMAP thread automatically.",
+        description: 'Use message.ID from the inbound Easyhook Trigger item. Easyhook preserves the Gmail, Outlook, or IMAP thread automatically.',
         displayOptions: {
           show: {
             resource: ["message"],
