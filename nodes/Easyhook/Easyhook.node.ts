@@ -46,7 +46,6 @@ const recipientMessageOperations = [
 ];
 const emailOperations = ["sendEmail", "replyEmail", "forwardEmail", "updateEmail", "createEmailDraft", "updateEmailDraft", "sendEmailDraft"];
 const emailContentOperations = ["sendEmail", "replyEmail", "createEmailDraft", "updateEmailDraft"];
-const emailRecipientOperations = [...emailContentOperations, "forwardEmail"];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
   ["sq", "Albanian"],
