@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.24
+
+- Add Mercado Libre to trigger provider filters and connected sender options.
+- Document replies to questions and post-sale conversations.
+
 ## 0.2.17
 
 - Add contextual WhatsApp replies.

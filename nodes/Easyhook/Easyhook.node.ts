@@ -1284,6 +1284,13 @@ export class Easyhook implements INodeType {
             undefined,
             { provider: "telegram", scope_type: "channel" },
           ),
+          easyhookRequest.call(
+            this,
+            "GET",
+            "/v1/webhooks/options",
+            undefined,
+            { provider: "mercadolibre", scope_type: "channel" },
+          ),
         ]);
         const seen = new Set<string>();
         return responses
