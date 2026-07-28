@@ -18,6 +18,7 @@ import {
 const messageOperations = [
   "sendText",
   "sendEmail",
+  "replyEmail",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
@@ -30,7 +31,6 @@ const messageOperations = [
 ];
 const recipientMessageOperations = [
   "sendText",
-  "sendEmail",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
@@ -39,6 +39,7 @@ const recipientMessageOperations = [
   "sendReply",
   "sendOnboarding",
 ];
+const emailOperations = ["sendEmail", "replyEmail"];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
   ["sq", "Albanian"],
@@ -160,6 +161,11 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["message"] } },
         options: [
           {
+            name: "Reply to Email",
+            value: "replyEmail",
+            action: "Reply to an email",
+          },
+          {
             name: "Send Email",
             value: "sendEmail",
             action: "Send an email",
@@ -273,7 +279,7 @@ export class Easyhook implements INodeType {
         default: "cancel",
       },
       {
-        displayName: 'From Name or ID',
+        displayName: "From Channel",
         name: "from",
         type: "options",
         typeOptions: {
@@ -286,7 +292,32 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message", "whatsapp", "media", "template"],
-            operation: [...messageOperations, "upload", "list", "sync"],
+            operation: [
+              ...messageOperations.filter(
+                (operation) => !emailOperations.includes(operation),
+              ),
+              "upload",
+              "list",
+              "sync",
+            ],
+          },
+        },
+      },
+      {
+        displayName: "From Email",
+        name: "from",
+        type: "options",
+        typeOptions: {
+          loadOptionsMethod: "getEmailSenders",
+        },
+        default: "",
+        required: true,
+        description:
+          'Choose a connected Gmail, Outlook, or IMAP/SMTP address, or specify one using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: emailOperations,
           },
         },
       },
@@ -301,6 +332,21 @@ export class Easyhook implements INodeType {
           show: {
             resource: ["message", "whatsapp"],
             operation: recipientMessageOperations,
+          },
+        },
+      },
+      {
+        displayName: "To Email",
+        name: "to",
+        type: "string",
+        default: "",
+        required: true,
+        placeholder: "customer@example.com",
+        description: "Recipient email address",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: emailOperations,
           },
         },
       },
@@ -327,12 +373,12 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: emailOperations,
           },
         },
       },
       {
-        displayName: "Body",
+        displayName: "Message",
         name: "emailBody",
         type: "string",
         typeOptions: { rows: 4 },
@@ -341,12 +387,12 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: emailOperations,
           },
         },
       },
       {
-        displayName: "HTML",
+        displayName: "HTML Message",
         name: "emailHtml",
         type: "string",
         typeOptions: { rows: 6 },
@@ -355,26 +401,27 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: emailOperations,
           },
         },
       },
       {
-        displayName: "Reply To Message ID",
+        displayName: "Original Email ID",
         name: "emailReplyToMessageId",
         type: "string",
         default: "",
+        required: true,
         description:
-          "Optional message ID from an inbound Easyhook email event; this is the simplest way to preserve the thread",
+          "Use message.id from the inbound Easyhook Trigger item. Easyhook preserves the Gmail, Outlook, or IMAP thread automatically.",
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: ["replyEmail"],
           },
         },
       },
       {
-        displayName: "Thread ID",
+        displayName: "Legacy Thread ID",
         name: "emailThreadId",
         type: "string",
         default: "",
@@ -382,12 +429,12 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: ["_legacyEmailReply"],
           },
         },
       },
       {
-        displayName: "In-Reply-To",
+        displayName: "Legacy In-Reply-To",
         name: "emailInReplyTo",
         type: "string",
         default: "",
@@ -396,12 +443,12 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: ["_legacyEmailReply"],
           },
         },
       },
       {
-        displayName: "References",
+        displayName: "Legacy References",
         name: "emailReferences",
         type: "string",
         default: "",
@@ -410,7 +457,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendEmail"],
+            operation: ["_legacyEmailReply"],
           },
         },
       },
@@ -1058,6 +1105,12 @@ export class Easyhook implements INodeType {
         type: "collection",
         placeholder: "Add Option",
         default: {},
+        displayOptions: {
+          show: {
+            resource: ["message", "whatsapp"],
+            operation: ["sendText", "sendMedia", "sendTemplate"],
+          },
+        },
         options: [
           {
             displayName: "Client Reference",
@@ -1074,12 +1127,6 @@ export class Easyhook implements INodeType {
             default: "",
             description:
               "Stable key for safely retrying a scheduled send. Reusing it returns the original scheduled message instead of creating another task.",
-          },
-          {
-            displayName: "Return Raw Response",
-            name: "returnRaw",
-            type: "boolean",
-            default: false,
           },
         ],
       },
@@ -1120,28 +1167,32 @@ export class Easyhook implements INodeType {
             undefined,
             { provider: "telegram", scope_type: "channel" },
           ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "gmail", scope_type: "channel" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "outlook", scope_type: "channel" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "imap_smtp", scope_type: "channel" },
-          ),
         ]);
+        const seen = new Set<string>();
+        return responses
+          .flatMap((response) => readArray(response, "scope_identifiers"))
+          .flatMap((option) => {
+            const name = typeof option.name === "string" ? option.name : "";
+            const value = typeof option.value === "string" ? option.value : "";
+            if (!name || !value || seen.has(value)) return [];
+            seen.add(value);
+            return [{ name, value }];
+          });
+      },
+      async getEmailSenders(
+        this: ILoadOptionsFunctions,
+      ): Promise<INodePropertyOptions[]> {
+        const responses = await Promise.all(
+          ["gmail", "outlook", "imap_smtp"].map((provider) =>
+            easyhookRequest.call(
+              this,
+              "GET",
+              "/v1/webhooks/options",
+              undefined,
+              { provider, scope_type: "channel" },
+            ),
+          ),
+        );
         const seen = new Set<string>();
         return responses
           .flatMap((response) => readArray(response, "scope_identifiers"))
@@ -1427,8 +1478,19 @@ async function executeMessageOperation(
     );
   }
 
-  if (operation === "sendEmail") {
+  if (emailOperations.includes(operation)) {
     const to = this.getNodeParameter("to", itemIndex) as string;
+    const replyToMessageId =
+      operation === "replyEmail"
+        ? (this.getNodeParameter(
+            "emailReplyToMessageId",
+            itemIndex,
+          ) as string)
+        : (this.getNodeParameter(
+            "emailReplyToMessageId",
+            itemIndex,
+            "",
+          ) as string);
     return easyhookRequest.call(
       this,
       "POST",
@@ -1439,11 +1501,7 @@ async function executeMessageOperation(
         subject: this.getNodeParameter("emailSubject", itemIndex) as string,
         body: this.getNodeParameter("emailBody", itemIndex) as string,
         html: this.getNodeParameter("emailHtml", itemIndex, "") as string,
-        reply_to_message_id: this.getNodeParameter(
-          "emailReplyToMessageId",
-          itemIndex,
-          "",
-        ) as string,
+        reply_to_message_id: replyToMessageId,
         thread_id: this.getNodeParameter("emailThreadId", itemIndex, "") as string,
         in_reply_to: this.getNodeParameter(
           "emailInReplyTo",

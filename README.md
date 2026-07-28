@@ -64,8 +64,8 @@ Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound
 For scheduled text, media, or templates, add:
 
 - `Schedule At`: ISO 8601 execution time
-- `Options > Client Reference`: your application identifier
-- `Options > Idempotency Key`: a stable key reused only when retrying the same scheduled send; immediate sends do not use the scheduling idempotency contract
+- `Options > Client Reference`: optional identifier from your application
+- `Options > Idempotency Key`: optional stable key used only when retrying the same scheduled send
 
 Use resource **Cancel Scheduled Message** to cancel a pending delivery before processing begins.
 
@@ -73,21 +73,19 @@ Use resource **Cancel Scheduled Message** to cancel a pending delivery before pr
 
 - Resource: `Message Action`
 - Operation: `Send Email`
-- From: select a connected Gmail, Outlook, or IMAP/SMTP address
-- To: recipient email address
+- From Email: select a connected Gmail, Outlook, or IMAP/SMTP address
+- To Email: recipient email address
 - Subject: email subject
-- Body: plain-text message
-- HTML: optional rich body
-- Reply To Message ID: optional inbound `message.id` (recommended for replies)
-- Thread ID: optional provider thread identifier from an inbound webhook
-- In-Reply-To: optional `message.message_id_header` of the email being answered
-- References: optional `message.references` from the inbound email
+- Message: plain-text message
+- HTML Message: optional rich body
+
+To answer an existing email, choose `Reply to Email` instead. Map the inbound
+Easyhook Trigger value `message.id` into `Original Email ID`. Easyhook resolves
+the Gmail thread, Outlook reply, or IMAP headers automatically. You do not need
+to configure Thread ID, In-Reply-To, or References in n8n.
 
 All email providers use `POST /v1/messages/email` and return the same normalized
-response. Use the inbound event's `message.thread_id`,
-`message.message_id_header`, `message.in_reply_to`, and `message.references`
-when a workflow needs to preserve a reply thread. Treat inbound
-`message.html` as untrusted content.
+response. Treat inbound `message.html` as untrusted content.
 
 ### Send Read, Typing, Or Reaction
 
