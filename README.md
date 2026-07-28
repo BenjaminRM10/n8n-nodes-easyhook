@@ -7,6 +7,8 @@ Gmail, Outlook, and generic IMAP/SMTP email. This node focuses on the workflows
 developers normally automate:
 
 - `Message Action` groups cross-channel text and media actions.
+- Email actions work consistently with Gmail, Outlook, and IMAP/SMTP: send,
+  reply, forward, read/unread, archive, and create/edit/send drafts.
 - `WhatsApp Only` groups templates, Flows, consent, onboarding links, read receipts, and typing indicators.
 - Use standard or humanized WhatsApp text delivery
 - Schedule messages with Easyhook's `at` parameter
@@ -86,6 +88,11 @@ to configure Thread ID, In-Reply-To, or References in n8n.
 
 All email providers use `POST /v1/messages/email` and return the same normalized
 response. Treat inbound `message.html` as untrusted content.
+
+Add files under **Attachments** by selecting an input binary field. Easyhook
+uses its file name and MIME type automatically. Use `Forward Email` with the
+trigger's `message.id`; use `Update Email` to mark that ID read, unread, or
+archived. Draft operations return a Draft ID that can later be edited or sent.
 
 ### Send Read, Typing, Or Reaction
 

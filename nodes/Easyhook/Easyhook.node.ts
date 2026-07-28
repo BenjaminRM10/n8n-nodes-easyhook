@@ -19,6 +19,11 @@ const messageOperations = [
   "sendText",
   "sendEmail",
   "replyEmail",
+  "forwardEmail",
+  "updateEmail",
+  "createEmailDraft",
+  "updateEmailDraft",
+  "sendEmailDraft",
   "sendMedia",
   "sendTemplate",
   "sendFlow",
@@ -39,7 +44,9 @@ const recipientMessageOperations = [
   "sendReply",
   "sendOnboarding",
 ];
-const emailOperations = ["sendEmail", "replyEmail"];
+const emailOperations = ["sendEmail", "replyEmail", "forwardEmail", "updateEmail", "createEmailDraft", "updateEmailDraft", "sendEmailDraft"];
+const emailContentOperations = ["sendEmail", "replyEmail", "createEmailDraft", "updateEmailDraft"];
+const emailRecipientOperations = [...emailContentOperations, "forwardEmail"];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
   ["sq", "Albanian"],
@@ -161,6 +168,21 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["message"] } },
         options: [
           {
+            name: "Create Email Draft",
+            value: "createEmailDraft",
+            action: "Create an email draft",
+          },
+          {
+            name: "Edit Email Draft",
+            value: "updateEmailDraft",
+            action: "Edit an email draft",
+          },
+          {
+            name: "Forward Email",
+            value: "forwardEmail",
+            action: "Forward an email",
+          },
+          {
             name: "Reply to Email",
             value: "replyEmail",
             action: "Reply to an email",
@@ -170,11 +192,21 @@ export class Easyhook implements INodeType {
             value: "sendEmail",
             action: "Send an email",
           },
+          {
+            name: "Send Email Draft",
+            value: "sendEmailDraft",
+            action: "Send an email draft",
+          },
           { name: "Send Media", value: "sendMedia", action: "Send media" },
           {
             name: "Send Text",
             value: "sendText",
             action: "Send a text message",
+          },
+          {
+            name: "Update Email",
+            value: "updateEmail",
+            action: "Mark an email as read unread or archived",
           },
         ],
         default: "sendText",
@@ -312,7 +344,7 @@ export class Easyhook implements INodeType {
         },
         default: "",
         required: true,
-        description: 'Choose a connected Gmail, Outlook, or IMAP/SMTP address, or specify one using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+        description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
             resource: ["message"],
@@ -345,7 +377,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: emailOperations,
+            operation: emailContentOperations,
           },
         },
       },
@@ -372,7 +404,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: emailOperations,
+            operation: emailContentOperations,
           },
         },
       },
@@ -386,7 +418,7 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: emailOperations,
+            operation: emailContentOperations,
           },
         },
       },
@@ -414,7 +446,95 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["replyEmail"],
+            operation: ["replyEmail", "forwardEmail", "updateEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Draft ID",
+        name: "emailDraftId",
+        type: "string",
+        default: "",
+        required: true,
+        description: "ID returned when the draft was created",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["updateEmailDraft", "sendEmailDraft"],
+          },
+        },
+      },
+      {
+        displayName: "Action",
+        name: "emailAction",
+        type: "options",
+        options: [
+          { name: "Archive", value: "archive" },
+          { name: "Mark as Read", value: "mark_read" },
+          { name: "Mark as Unread", value: "mark_unread" },
+        ],
+        default: "mark_read",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["updateEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Forward Note",
+        name: "emailForwardNote",
+        type: "string",
+        typeOptions: { rows: 3 },
+        default: "",
+        description: "Optional note shown above the forwarded email",
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["forwardEmail"],
+          },
+        },
+      },
+      {
+        displayName: "Attachments",
+        name: "emailAttachments",
+        type: "fixedCollection",
+        typeOptions: { multipleValues: true },
+        default: {},
+        options: [
+          {
+            displayName: "Attachment",
+            name: "attachment",
+            values: [
+              {
+                displayName: "Input Binary Field",
+                name: "binaryPropertyName",
+                type: "string",
+                default: "data",
+                required: true,
+                description: "Name of the binary field containing the file",
+              },
+              {
+                displayName: "File Name",
+                name: "filename",
+                type: "string",
+                default: "",
+                description: "Optional file name override",
+              },
+              {
+                displayName: "Content Type",
+                name: "contentType",
+                type: "string",
+                default: "",
+                description: "Optional MIME type override",
+              },
+            ],
+          },
+        ],
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: emailContentOperations,
           },
         },
       },
@@ -1477,22 +1597,79 @@ async function executeMessageOperation(
   }
 
   if (emailOperations.includes(operation)) {
+    const draftId = this.getNodeParameter("emailDraftId", itemIndex, "") as string;
+    if (operation === "sendEmailDraft") {
+      return easyhookRequest.call(
+        this,
+        "POST",
+        `/v1/email/drafts/${encodeURIComponent(draftId)}/send`,
+        { from },
+      );
+    }
+    const originalMessageId = this.getNodeParameter(
+      "emailReplyToMessageId",
+      itemIndex,
+      "",
+    ) as string;
+    if (operation === "updateEmail") {
+      return easyhookRequest.call(
+        this,
+        "POST",
+        "/v1/email/actions",
+        {
+          from,
+          message_id: originalMessageId,
+          action: this.getNodeParameter("emailAction", itemIndex) as string,
+        },
+      );
+    }
     const to = this.getNodeParameter("to", itemIndex) as string;
+    if (operation === "forwardEmail") {
+      return easyhookRequest.call(
+        this,
+        "POST",
+        "/v1/messages/email/forward",
+        cleanObject({
+          from,
+          to,
+          message_id: originalMessageId,
+          note: this.getNodeParameter("emailForwardNote", itemIndex, "") as string,
+        }),
+      );
+    }
     const replyToMessageId =
       operation === "replyEmail"
-        ? (this.getNodeParameter(
-            "emailReplyToMessageId",
-            itemIndex,
-          ) as string)
+        ? originalMessageId
         : (this.getNodeParameter(
             "emailReplyToMessageId",
             itemIndex,
             "",
           ) as string);
+    const attachmentConfig = this.getNodeParameter(
+      "emailAttachments.attachment",
+      itemIndex,
+      [],
+    ) as IDataObject[];
+    const inputItem = this.getInputData()[itemIndex];
+    const attachments = await Promise.all(attachmentConfig.map(async (attachment) => {
+      const binaryPropertyName = String(attachment.binaryPropertyName ?? "data");
+      const bytes = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+      const binary = inputItem.binary?.[binaryPropertyName];
+      return {
+        filename: String(attachment.filename || binary?.fileName || "attachment"),
+        content_type: String(attachment.contentType || binary?.mimeType || "application/octet-stream"),
+        content_base64: bytes.toString("base64"),
+      };
+    }));
+    const endpoint = operation === "createEmailDraft"
+      ? "/v1/email/drafts"
+      : operation === "updateEmailDraft"
+        ? `/v1/email/drafts/${encodeURIComponent(draftId)}`
+        : "/v1/messages/email";
     return easyhookRequest.call(
       this,
-      "POST",
-      "/v1/messages/email",
+      operation === "updateEmailDraft" ? "PUT" : "POST",
+      endpoint,
       cleanObject({
         from,
         to,
@@ -1511,6 +1688,7 @@ async function executeMessageOperation(
           itemIndex,
           "",
         ) as string,
+        attachments,
       }),
     );
   }

@@ -13,7 +13,7 @@ export type EasyhookRequestFunctions =
   | ILoadOptionsFunctions
   | IHookFunctions;
 
-export type EasyhookHttpMethod = "GET" | "POST" | "DELETE";
+export type EasyhookHttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 export async function easyhookRequest(
   this: EasyhookRequestFunctions,
