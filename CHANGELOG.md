@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.25
+
+- Use provider-native `account.id` values in channel selectors, including Meta
+  Phone Number IDs for WhatsApp, without requiring `page_` or `ig_` prefixes.
+- Add multichannel message controls for read, typing, contextual replies, and
+  reactions, filtered by provider capability.
+- Support humanized and scheduled delivery across supported messaging channels.
+- Group Gmail, Outlook, and IMAP/SMTP actions under `Email Only`.
+- Scope reusable media to the organization and add authenticated incoming-media
+  downloads to n8n binary fields.
+- Add direct opt-in and opt-out recording with auditable external evidence.
+
 ## 0.2.24
 
 - Add Mercado Libre to trigger provider filters and connected sender options.

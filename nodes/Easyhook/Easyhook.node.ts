@@ -6,17 +6,50 @@ import type {
   INodePropertyOptions,
   INodeType,
   INodeTypeDescription,
+  JsonObject,
   ResourceMapperFields,
 } from "n8n-workflow";
-import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
+import {
+  NodeApiError,
+  NodeConnectionTypes,
+  NodeOperationError,
+} from "n8n-workflow";
 import {
   cleanObject,
+  easyhookDownload,
   easyhookRequest,
   readArray,
 } from "../../shared/EasyhookClient";
 
-const messageOperations = [
+const messageOperations = ["sendText", "sendMedia"];
+const messageControlOperations = [
+  "sendRead",
+  "sendTyping",
+  "sendReaction",
+  "sendReply",
+];
+const whatsappOperations = [
+  "sendTemplate",
+  "sendFlow",
+  "sendConsent",
+  "recordConsent",
+  "sendOnboarding",
+  "createOnboarding",
+];
+const recipientMessageOperations = [
   "sendText",
+  "sendMedia",
+  "sendRead",
+  "sendTyping",
+  "sendReaction",
+  "sendReply",
+  "sendTemplate",
+  "sendFlow",
+  "sendConsent",
+  "recordConsent",
+  "sendOnboarding",
+];
+const emailOperations = [
   "sendEmail",
   "replyEmail",
   "forwardEmail",
@@ -24,28 +57,13 @@ const messageOperations = [
   "createEmailDraft",
   "updateEmailDraft",
   "sendEmailDraft",
-  "sendMedia",
-  "sendTemplate",
-  "sendFlow",
-  "sendRead",
-  "sendTyping",
-  "sendConsent",
-  "sendReaction",
-  "sendReply",
-  "sendOnboarding",
 ];
-const recipientMessageOperations = [
-  "sendText",
-  "sendMedia",
-  "sendTemplate",
-  "sendFlow",
-  "sendConsent",
-  "sendReaction",
-  "sendReply",
-  "sendOnboarding",
+const emailContentOperations = [
+  "sendEmail",
+  "replyEmail",
+  "createEmailDraft",
+  "updateEmailDraft",
 ];
-const emailOperations = ["sendEmail", "replyEmail", "forwardEmail", "updateEmail", "createEmailDraft", "updateEmailDraft", "sendEmailDraft"];
-const emailContentOperations = ["sendEmail", "replyEmail", "createEmailDraft", "updateEmailDraft"];
 const templateLanguageOptions: INodePropertyOptions[] = [
   ["af", "Afrikaans"],
   ["sq", "Albanian"],
@@ -152,8 +170,10 @@ export class Easyhook implements INodeType {
             name: "Cancel Scheduled Message",
             value: "scheduledMessage",
           },
+          { name: "Email Only", value: "email" },
           { name: "Media", value: "media" },
           { name: "Message Action", value: "message" },
+          { name: "Message Control", value: "messageControl" },
           { name: "Template", value: "template" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
@@ -164,7 +184,7 @@ export class Easyhook implements INodeType {
         name: "operation",
         type: "options",
         noDataExpression: true,
-        displayOptions: { show: { resource: ["message"] } },
+        displayOptions: { show: { resource: ["email"] } },
         options: [
           {
             name: "Create Email Draft",
@@ -196,16 +216,56 @@ export class Easyhook implements INodeType {
             value: "sendEmailDraft",
             action: "Send an email draft",
           },
+          {
+            name: "Update Email",
+            value: "updateEmail",
+            action: "Mark an email as read unread or archived",
+          },
+        ],
+        default: "sendEmail",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["messageControl"] } },
+        options: [
+          {
+            name: "Mark as Read",
+            value: "sendRead",
+            action: "Mark a message as read",
+          },
+          {
+            name: "React",
+            value: "sendReaction",
+            action: "React to a message",
+          },
+          {
+            name: "Reply",
+            value: "sendReply",
+            action: "Reply to a message",
+          },
+          {
+            name: "Show Typing",
+            value: "sendTyping",
+            action: "Show a typing indicator",
+          },
+        ],
+        default: "sendRead",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["message"] } },
+        options: [
           { name: "Send Media", value: "sendMedia", action: "Send media" },
           {
             name: "Send Text",
             value: "sendText",
             action: "Send a text message",
-          },
-          {
-            name: "Update Email",
-            value: "updateEmail",
-            action: "Mark an email as read unread or archived",
           },
         ],
         default: "sendText",
@@ -223,9 +283,9 @@ export class Easyhook implements INodeType {
             action: "Get a hosted onboarding URL",
           },
           {
-            name: "Reply to Message",
-            value: "sendReply",
-            action: "Reply to a message",
+            name: "Record Opt-In or Opt-Out",
+            value: "recordConsent",
+            action: "Record consent collected externally",
           },
           {
             name: "Send Flow",
@@ -243,24 +303,9 @@ export class Easyhook implements INodeType {
             action: "Send a consent flow",
           },
           {
-            name: "Send Reaction",
-            value: "sendReaction",
-            action: "React to a message",
-          },
-          {
-            name: "Send Read Receipt",
-            value: "sendRead",
-            action: "Mark a message as read",
-          },
-          {
             name: "Send Template",
             value: "sendTemplate",
             action: "Send an approved template",
-          },
-          {
-            name: "Send Typing Indicator",
-            value: "sendTyping",
-            action: "Show a typing indicator",
           },
         ],
         default: "sendTemplate",
@@ -273,6 +318,11 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["media"] } },
         options: [
           { name: "Delete", value: "delete", action: "Delete reusable media" },
+          {
+            name: "Download",
+            value: "download",
+            action: "Download private easyhook media",
+          },
           { name: "List", value: "list", action: "List reusable media" },
           { name: "Upload", value: "upload", action: "Upload reusable media" },
         ],
@@ -310,7 +360,7 @@ export class Easyhook implements INodeType {
         default: "cancel",
       },
       {
-        displayName: 'From Channel Name or ID',
+        displayName: "Channel Name or ID",
         name: "from",
         type: "options",
         typeOptions: {
@@ -322,20 +372,18 @@ export class Easyhook implements INodeType {
           'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
-            resource: ["message", "whatsapp", "media", "template"],
+            resource: ["message", "messageControl", "whatsapp", "template"],
             operation: [
-              ...messageOperations.filter(
-                (operation) => !emailOperations.includes(operation),
-              ),
-              "upload",
-              "list",
+              ...messageOperations,
+              ...messageControlOperations,
+              ...whatsappOperations,
               "sync",
             ],
           },
         },
       },
       {
-        displayName: 'From Email Name or ID',
+        displayName: "Email Name or ID",
         name: "from",
         type: "options",
         typeOptions: {
@@ -343,10 +391,11 @@ export class Easyhook implements INodeType {
         },
         default: "",
         required: true,
-        description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+        description:
+          'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailOperations,
           },
         },
@@ -360,7 +409,7 @@ export class Easyhook implements INodeType {
         description: "Customer WhatsApp number or channel recipient ID",
         displayOptions: {
           show: {
-            resource: ["message", "whatsapp"],
+            resource: ["message", "messageControl", "whatsapp"],
             operation: recipientMessageOperations,
           },
         },
@@ -375,7 +424,7 @@ export class Easyhook implements INodeType {
         description: "Recipient email address",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailContentOperations,
           },
         },
@@ -402,7 +451,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailContentOperations,
           },
         },
@@ -416,7 +465,7 @@ export class Easyhook implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailContentOperations,
           },
         },
@@ -430,7 +479,7 @@ export class Easyhook implements INodeType {
         description: "Optional HTML version of the email",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailOperations,
           },
         },
@@ -441,10 +490,11 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         required: true,
-        description: 'Use message.ID from the inbound Easyhook Trigger item. Easyhook preserves the Gmail, Outlook, or IMAP thread automatically.',
+        description:
+          "Use message.ID from the inbound Easyhook Trigger item. Easyhook preserves the Gmail, Outlook, or IMAP thread automatically.",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["replyEmail", "forwardEmail", "updateEmail"],
           },
         },
@@ -458,7 +508,7 @@ export class Easyhook implements INodeType {
         description: "ID returned when the draft was created",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["updateEmailDraft", "sendEmailDraft"],
           },
         },
@@ -475,7 +525,7 @@ export class Easyhook implements INodeType {
         default: "mark_read",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["updateEmail"],
           },
         },
@@ -489,7 +539,7 @@ export class Easyhook implements INodeType {
         description: "Optional note shown above the forwarded email",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["forwardEmail"],
           },
         },
@@ -532,7 +582,7 @@ export class Easyhook implements INodeType {
         ],
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: emailContentOperations,
           },
         },
@@ -542,10 +592,11 @@ export class Easyhook implements INodeType {
         name: "emailThreadId",
         type: "string",
         default: "",
-        description: "Optional provider thread ID when replying to an existing email",
+        description:
+          "Optional provider thread ID when replying to an existing email",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["_legacyEmailReply"],
           },
         },
@@ -555,11 +606,10 @@ export class Easyhook implements INodeType {
         name: "emailInReplyTo",
         type: "string",
         default: "",
-        description:
-          "Optional Message-ID header from the email being answered",
+        description: "Optional Message-ID header from the email being answered",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["_legacyEmailReply"],
           },
         },
@@ -573,7 +623,7 @@ export class Easyhook implements INodeType {
           "Optional space-separated Message-ID headers that identify the email thread",
         displayOptions: {
           show: {
-            resource: ["message"],
+            resource: ["email"],
             operation: ["_legacyEmailReply"],
           },
         },
@@ -588,7 +638,7 @@ export class Easyhook implements INodeType {
         ],
         default: "standard",
         description:
-          "WhatsApp only: mark the latest inbound message as read, wait a human-like read/typing delay, show typing, then send the text",
+          "Adds supported read, pause, and typing behavior before sending through WhatsApp, Messenger, Instagram, or Telegram",
         displayOptions: {
           show: {
             resource: ["message"],
@@ -602,10 +652,10 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         description:
-          "Optional WhatsApp wamid to mark as read/typing. If empty for humanized delivery, Easyhook uses the latest inbound message from To.",
+          "Message ID received in message.ID. Required for read, reply, and reaction; typing support varies by channel.",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["messageControl"],
             operation: ["sendRead", "sendTyping", "sendReaction", "sendReply"],
           },
         },
@@ -617,10 +667,10 @@ export class Easyhook implements INodeType {
         typeOptions: { rows: 3 },
         default: "",
         required: true,
-        description: "Text sent as a contextual reply to the selected WhatsApp message",
+        description: "Text sent as a contextual reply to the selected message",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["messageControl"],
             operation: ["sendReply"],
           },
         },
@@ -630,10 +680,11 @@ export class Easyhook implements INodeType {
         name: "reactionEmoji",
         type: "string",
         default: "👍",
-        description: "Emoji to add. Leave empty to remove the current reaction.",
+        description:
+          "Emoji to add. Leave empty to remove the current reaction.",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["messageControl"],
             operation: ["sendReaction"],
           },
         },
@@ -693,7 +744,7 @@ export class Easyhook implements INodeType {
         },
       },
       {
-        displayName: 'Media Name or ID',
+        displayName: "Media Name or ID",
         name: "mediaName",
         type: "options",
         typeOptions: {
@@ -1051,7 +1102,54 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["whatsapp"],
-            operation: ["sendConsent"],
+            operation: ["recordConsent", "sendConsent"],
+          },
+        },
+      },
+      {
+        displayName: "Consent Scope",
+        name: "consentScope",
+        type: "options",
+        options: [
+          { name: "Marketing", value: "marketing" },
+          { name: "Service", value: "service" },
+        ],
+        default: "marketing",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["recordConsent"],
+          },
+        },
+      },
+      {
+        displayName: "Evidence Source",
+        name: "consentSource",
+        type: "string",
+        default: "customer_form",
+        required: true,
+        description:
+          "Where consent was collected, for example customer_form or crm",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["recordConsent"],
+          },
+        },
+      },
+      {
+        displayName: "Evidence JSON",
+        name: "consentEvidence",
+        type: "json",
+        default:
+          '{\n  "form_id": "form_123",\n  "accepted_at": "2026-07-02T18:00:00.000Z"\n}',
+        required: true,
+        description:
+          "Auditable evidence such as form version, accepted_at, source URL, or external submission ID",
+        displayOptions: {
+          show: {
+            resource: ["whatsapp"],
+            operation: ["recordConsent"],
           },
         },
       },
@@ -1108,7 +1206,8 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         required: true,
-        description: "Unique reusable media name inside the WABA",
+        description:
+          "Unique reusable media name inside the Easyhook organization",
         displayOptions: {
           show: {
             resource: ["media"],
@@ -1191,6 +1290,34 @@ export class Easyhook implements INodeType {
         },
       },
       {
+        displayName: "Media URL",
+        name: "mediaDownloadUrl",
+        type: "string",
+        default: "",
+        required: true,
+        placeholder: "https://api.easyhook.dev/v1/media/.../download",
+        description: "Authenticated Easyhook link from an incoming media event",
+        displayOptions: {
+          show: {
+            resource: ["media"],
+            operation: ["download"],
+          },
+        },
+      },
+      {
+        displayName: "Output Binary Field",
+        name: "downloadBinaryProperty",
+        type: "string",
+        default: "data",
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ["media"],
+            operation: ["download"],
+          },
+        },
+      },
+      {
         displayName: "Media Asset ID",
         name: "mediaAssetId",
         type: "string",
@@ -1250,96 +1377,59 @@ export class Easyhook implements INodeType {
     ],
   };
 
+  // n8n uses this method while rendering the sender selector, so unsupported
+  // providers never appear for the selected operation.
   methods = {
     loadOptions: {
       async getSenders(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
-        const responses = await Promise.all([
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "whatsapp", scope_type: "phone" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "messenger", scope_type: "channel" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "instagram", scope_type: "channel" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "telegram", scope_type: "channel" },
-          ),
-          easyhookRequest.call(
-            this,
-            "GET",
-            "/v1/webhooks/options",
-            undefined,
-            { provider: "mercadolibre", scope_type: "channel" },
-          ),
-        ]);
+        const response = await easyhookRequest.call(this, "GET", "/v1/senders");
+        const resource = String(this.getCurrentNodeParameter("resource") ?? "");
+        const operation = String(
+          this.getCurrentNodeParameter("operation") ?? "",
+        );
         const seen = new Set<string>();
-        return responses
-          .flatMap((response) => readArray(response, "scope_identifiers"))
-          .flatMap((option) => {
-            const name = typeof option.name === "string" ? option.name : "";
-            const value = typeof option.value === "string" ? option.value : "";
-            if (!name || !value || seen.has(value)) return [];
-            seen.add(value);
-            return [{ name, value }];
-          });
+        return readArray(response, "senders").flatMap((option) => {
+          const provider =
+            typeof option.provider === "string" ? option.provider : "";
+          if (!senderSupportsNodeOperation(provider, resource, operation))
+            return [];
+          const label = typeof option.name === "string" ? option.name : "";
+          const address =
+            typeof option.address === "string" ? option.address : "";
+          const value =
+            typeof option.account_id === "string" ? option.account_id : "";
+          const name = [label, address, provider].filter(Boolean).join(" · ");
+          if (!name || !value || seen.has(value)) return [];
+          seen.add(value);
+          return [{ name, value }];
+        });
       },
       async getEmailSenders(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
-        const responses = await Promise.all(
-          ["gmail", "outlook", "imap_smtp"].map((provider) =>
-            easyhookRequest.call(
-              this,
-              "GET",
-              "/v1/webhooks/options",
-              undefined,
-              { provider, scope_type: "channel" },
-            ),
-          ),
-        );
+        const response = await easyhookRequest.call(this, "GET", "/v1/senders");
         const seen = new Set<string>();
-        return responses
-          .flatMap((response) => readArray(response, "scope_identifiers"))
-          .flatMap((option) => {
-            const name = typeof option.name === "string" ? option.name : "";
-            const value = typeof option.value === "string" ? option.value : "";
-            if (!name || !value || seen.has(value)) return [];
-            seen.add(value);
-            return [{ name, value }];
-          });
+        return readArray(response, "senders").flatMap((option) => {
+          const provider =
+            typeof option.provider === "string" ? option.provider : "";
+          if (!["gmail", "outlook", "imap_smtp"].includes(provider)) return [];
+          const label = typeof option.name === "string" ? option.name : "";
+          const address =
+            typeof option.address === "string" ? option.address : "";
+          const value =
+            typeof option.account_id === "string" ? option.account_id : "";
+          const name = [label, address, provider].filter(Boolean).join(" · ");
+          if (!name || !value || seen.has(value)) return [];
+          seen.add(value);
+          return [{ name, value }];
+        });
       },
       async getMedia(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
-        const from = this.getCurrentNodeParameter("from") as string | undefined;
-        if (!from) return [];
-        const response = await easyhookRequest.call(
-          this,
-          "GET",
-          "/v1/media",
-          undefined,
-          { from },
-        );
+        const response = await easyhookRequest.call(this, "GET", "/v1/media");
         return readArray(response, "media").flatMap((item) => {
           const name = typeof item.name === "string" ? item.name : "";
           const type = typeof item.type === "string" ? item.type : "";
@@ -1470,6 +1560,27 @@ export class Easyhook implements INodeType {
       try {
         const resource = this.getNodeParameter("resource", i) as string;
         const operation = this.getNodeParameter("operation", i) as string;
+        if (resource === "media" && operation === "download") {
+          const url = this.getNodeParameter("mediaDownloadUrl", i) as string;
+          const property = this.getNodeParameter(
+            "downloadBinaryProperty",
+            i,
+            "data",
+          ) as string;
+          const buffer = await easyhookDownload.call(this, url);
+          returnData.push({
+            json: {
+              downloaded: true,
+              bytes: buffer.byteLength,
+              source_url: url,
+            },
+            binary: {
+              [property]: await this.helpers.prepareBinaryData(buffer),
+            },
+            pairedItem: { item: i },
+          });
+          continue;
+        }
         const response = await executeOperation.call(
           this,
           resource,
@@ -1490,16 +1601,62 @@ export class Easyhook implements INodeType {
           });
           continue;
         }
-        throw error instanceof NodeOperationError
-          ? error
-          : new NodeOperationError(this.getNode(), error as Error, {
-              itemIndex: i,
-            });
+        if (error instanceof NodeApiError) {
+          throw new NodeApiError(
+            this.getNode(),
+            error as unknown as JsonObject,
+            { itemIndex: i },
+          );
+        }
+        throw new NodeOperationError(
+          this.getNode(),
+          error instanceof Error ? error.message : String(error),
+          { itemIndex: i },
+        );
       }
     }
 
     return [returnData];
   }
+}
+
+function senderSupportsNodeOperation(
+  provider: string,
+  resource: string,
+  operation: string,
+): boolean {
+  const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
+  if (resource === "email") return emailProviders.has(provider);
+  if (resource === "whatsapp" || resource === "template")
+    return provider === "whatsapp";
+  if (resource === "message") {
+    if (operation === "sendMedia")
+      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+        provider,
+      );
+    return [
+      "whatsapp",
+      "messenger",
+      "instagram",
+      "telegram",
+      "mercadolibre",
+    ].includes(provider);
+  }
+  if (resource === "messageControl") {
+    if (operation === "sendRead")
+      return ["whatsapp", "messenger", "instagram"].includes(provider);
+    if (operation === "sendTyping")
+      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+        provider,
+      );
+    if (operation === "sendReaction")
+      return ["whatsapp", "telegram"].includes(provider);
+    if (operation === "sendReply")
+      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+        provider,
+      );
+  }
+  return true;
 }
 
 async function executeOperation(
@@ -1508,7 +1665,13 @@ async function executeOperation(
   operation: string,
   itemIndex: number,
 ): Promise<IDataObject> {
-  if (resource === "message" || resource === "whatsapp")
+  if (
+    resource === "message" ||
+    resource === "messageControl" ||
+    resource === "whatsapp"
+  )
+    return executeMessageOperation.call(this, operation, itemIndex);
+  if (resource === "email")
     return executeMessageOperation.call(this, operation, itemIndex);
   if (resource === "media")
     return executeMediaOperation.call(this, operation, itemIndex);
@@ -1603,7 +1766,11 @@ async function executeMessageOperation(
   }
 
   if (emailOperations.includes(operation)) {
-    const draftId = this.getNodeParameter("emailDraftId", itemIndex, "") as string;
+    const draftId = this.getNodeParameter(
+      "emailDraftId",
+      itemIndex,
+      "",
+    ) as string;
     if (operation === "sendEmailDraft") {
       return easyhookRequest.call(
         this,
@@ -1618,16 +1785,11 @@ async function executeMessageOperation(
       "",
     ) as string;
     if (operation === "updateEmail") {
-      return easyhookRequest.call(
-        this,
-        "POST",
-        "/v1/email/actions",
-        {
-          from,
-          message_id: originalMessageId,
-          action: this.getNodeParameter("emailAction", itemIndex) as string,
-        },
-      );
+      return easyhookRequest.call(this, "POST", "/v1/email/actions", {
+        from,
+        message_id: originalMessageId,
+        action: this.getNodeParameter("emailAction", itemIndex) as string,
+      });
     }
     const to = this.getNodeParameter("to", itemIndex) as string;
     if (operation === "forwardEmail") {
@@ -1639,7 +1801,11 @@ async function executeMessageOperation(
           from,
           to,
           message_id: originalMessageId,
-          note: this.getNodeParameter("emailForwardNote", itemIndex, "") as string,
+          note: this.getNodeParameter(
+            "emailForwardNote",
+            itemIndex,
+            "",
+          ) as string,
         }),
       );
     }
@@ -1657,21 +1823,35 @@ async function executeMessageOperation(
       [],
     ) as IDataObject[];
     const inputItem = this.getInputData()[itemIndex];
-    const attachments = await Promise.all(attachmentConfig.map(async (attachment) => {
-      const binaryPropertyName = String(attachment.binaryPropertyName ?? "data");
-      const bytes = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
-      const binary = inputItem.binary?.[binaryPropertyName];
-      return {
-        filename: String(attachment.filename || binary?.fileName || "attachment"),
-        content_type: String(attachment.contentType || binary?.mimeType || "application/octet-stream"),
-        content_base64: bytes.toString("base64"),
-      };
-    }));
-    const endpoint = operation === "createEmailDraft"
-      ? "/v1/email/drafts"
-      : operation === "updateEmailDraft"
-        ? `/v1/email/drafts/${encodeURIComponent(draftId)}`
-        : "/v1/messages/email";
+    const attachments = await Promise.all(
+      attachmentConfig.map(async (attachment) => {
+        const binaryPropertyName = String(
+          attachment.binaryPropertyName ?? "data",
+        );
+        const bytes = await this.helpers.getBinaryDataBuffer(
+          itemIndex,
+          binaryPropertyName,
+        );
+        const binary = inputItem.binary?.[binaryPropertyName];
+        return {
+          filename: String(
+            attachment.filename || binary?.fileName || "attachment",
+          ),
+          content_type: String(
+            attachment.contentType ||
+              binary?.mimeType ||
+              "application/octet-stream",
+          ),
+          content_base64: bytes.toString("base64"),
+        };
+      }),
+    );
+    const endpoint =
+      operation === "createEmailDraft"
+        ? "/v1/email/drafts"
+        : operation === "updateEmailDraft"
+          ? `/v1/email/drafts/${encodeURIComponent(draftId)}`
+          : "/v1/messages/email";
     return easyhookRequest.call(
       this,
       operation === "updateEmailDraft" ? "PUT" : "POST",
@@ -1683,7 +1863,11 @@ async function executeMessageOperation(
         body: this.getNodeParameter("emailBody", itemIndex) as string,
         html: this.getNodeParameter("emailHtml", itemIndex, "") as string,
         reply_to_message_id: replyToMessageId,
-        thread_id: this.getNodeParameter("emailThreadId", itemIndex, "") as string,
+        thread_id: this.getNodeParameter(
+          "emailThreadId",
+          itemIndex,
+          "",
+        ) as string,
         in_reply_to: this.getNodeParameter(
           "emailInReplyTo",
           itemIndex,
@@ -1838,10 +2022,32 @@ async function executeMessageOperation(
     });
   }
 
+  if (operation === "recordConsent") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const evidence = parseJsonObject(
+      this.getNodeParameter("consentEvidence", itemIndex) as string,
+      this,
+      itemIndex,
+      "Evidence JSON",
+    );
+    return easyhookRequest.call(this, "POST", "/v1/consent", {
+      from,
+      to,
+      scope: this.getNodeParameter("consentScope", itemIndex) as string,
+      status: this.getNodeParameter("consentMode", itemIndex) as string,
+      source: this.getNodeParameter("consentSource", itemIndex) as string,
+      evidence,
+    });
+  }
+
   if (operation === "sendReaction") {
     const to = this.getNodeParameter("to", itemIndex) as string;
     const messageId = this.getNodeParameter("messageId", itemIndex) as string;
-    const emoji = this.getNodeParameter("reactionEmoji", itemIndex, "") as string;
+    const emoji = this.getNodeParameter(
+      "reactionEmoji",
+      itemIndex,
+      "",
+    ) as string;
     return easyhookRequest.call(this, "POST", "/v1/messages/reaction", {
       from,
       to,
@@ -1922,8 +2128,7 @@ async function executeMediaOperation(
   itemIndex: number,
 ): Promise<IDataObject> {
   if (operation === "list") {
-    const from = this.getNodeParameter("from", itemIndex) as string;
-    return easyhookRequest.call(this, "GET", "/v1/media", undefined, { from });
+    return easyhookRequest.call(this, "GET", "/v1/media");
   }
 
   if (operation === "delete") {
@@ -1936,14 +2141,13 @@ async function executeMediaOperation(
   }
 
   if (operation === "upload") {
-    const from = this.getNodeParameter("from", itemIndex) as string;
     const name = this.getNodeParameter("uploadName", itemIndex) as string;
     const type = this.getNodeParameter("mediaType", itemIndex) as string;
     const uploadSource = this.getNodeParameter(
       "uploadSource",
       itemIndex,
     ) as string;
-    const body: IDataObject = { from, name, type };
+    const body: IDataObject = { name, type };
 
     if (uploadSource === "binary") {
       const binaryPropertyName = this.getNodeParameter(
@@ -2033,6 +2237,34 @@ function parseTemplateSelection(value: string): IDataObject {
   } catch {
     return { name: value };
   }
+}
+
+function parseJsonObject(
+  value: string,
+  context: IExecuteFunctions,
+  itemIndex: number,
+  fieldName: string,
+): IDataObject {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value) as unknown;
+  } catch (error) {
+    throw new NodeOperationError(
+      context.getNode(),
+      `${fieldName} must be a valid JSON object: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { itemIndex },
+    );
+  }
+  if (!isRecord(parsed)) {
+    throw new NodeOperationError(
+      context.getNode(),
+      `${fieldName} must be a JSON object`,
+      { itemIndex },
+    );
+  }
+  return parsed;
 }
 
 function templateMatchesSelection(

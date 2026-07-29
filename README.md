@@ -7,12 +7,15 @@ Gmail, Outlook, generic IMAP/SMTP email, and Mercado Libre. This node focuses on
 developers normally automate:
 
 - `Message Action` groups cross-channel text and media actions.
-- Email actions work consistently with Gmail, Outlook, and IMAP/SMTP: send,
+- `Message Control` groups read, typing, reply, and reaction actions and only
+  lists channels that support the selected operation.
+- `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
   reply, forward, read/unread, archive, and create/edit/send drafts.
-- `WhatsApp Only` groups templates, Flows, consent, onboarding links, read receipts, and typing indicators.
-- Use standard or humanized WhatsApp text delivery
-- Schedule messages with Easyhook's `at` parameter
-- Upload reusable media and send it later by `media_name`
+- `WhatsApp Only` groups templates, Flows, consent, and onboarding links.
+- Use standard or humanized delivery on WhatsApp, Messenger, Instagram, and Telegram.
+- Schedule supported WhatsApp, Messenger, Instagram, Telegram, and Mercado Libre messages.
+- Upload organization-wide reusable media and send it later by `media_name`.
+- Download protected incoming media into an n8n binary field.
 - List/sync templates and media
 - Cancel scheduled messages before processing begins
 - Receive Easyhook webhook events in n8n with the Easyhook Trigger node
@@ -63,11 +66,18 @@ The trigger outputs the normalized Easyhook webhook JSON directly.
 
 - Resource: `Message Action`
 - Operation: `Send Text`
-- From: `5218661479075`
+- Channel: select a connected channel
 - To: `5215660069997`
 - Body: `Hello from n8n`
 
-Choose **Delivery: Humanized** when you want Easyhook to mark the latest inbound WhatsApp message as read, wait a human-like read/typing delay, show typing, and then send the text. Easyhook uses the latest inbound message from `To`.
+The channel selector stores the same provider-native value delivered as
+`account.id` by the Easyhook Trigger. WhatsApp uses the Meta Phone Number ID;
+Messenger uses the Page ID; Instagram uses the Instagram account ID; and
+Telegram uses its connected account ID. Legacy `page_` and `ig_` aliases remain
+accepted by the API, but new workflows do not need prefixes.
+
+Choose **Delivery: Humanized** to apply the supported read, pause, and typing
+behavior before sending through WhatsApp, Messenger, Instagram, or Telegram.
 
 For scheduled text, media, or templates, add:
 
@@ -79,9 +89,9 @@ Use resource **Cancel Scheduled Message** to cancel a pending delivery before pr
 
 ### Send Email
 
-- Resource: `Message Action`
+- Resource: `Email Only`
 - Operation: `Send Email`
-- From Email: select a connected Gmail, Outlook, or IMAP/SMTP address
+- Email: select a connected Gmail, Outlook, or IMAP/SMTP address
 - To Email: recipient email address
 - Subject: email subject
 - Message: plain-text message
@@ -102,15 +112,19 @@ archived. Draft operations return a Draft ID that can later be edited or sent.
 
 ### Send Read, Typing, Or Reaction
 
-- Resource: `WhatsApp Only`
-- Operation: `Send Read Receipt`, `Send Typing Indicator`, or `Send Reaction`
-- From: your WhatsApp sender number
-- Inbound Message ID: the inbound WhatsApp `wamid`
+- Resource: `Message Control`
+- Operation: `Mark as Read`, `Show Typing`, `React`, or `Reply`
+- Channel: select the channel from the incoming event
+- Inbound Message ID: map `message.id` from Easyhook Trigger
 
-For a reaction, also set `To` and `Reaction`. Leave the reaction empty to remove it.
+The channel list is filtered by capability. WhatsApp supports all four
+operations. Messenger and Instagram support read, typing, and reply. Telegram
+supports typing, reply, and reaction. Unsupported combinations are rejected
+explicitly without charging the wallet.
 
-To send a contextual WhatsApp reply, choose **WhatsApp Only → Reply to Message** and provide the original
-WhatsApp message ID, recipient, and reply text.
+For a reaction, also set `To` and `Reaction`. Leave the reaction empty to remove
+it. For a contextual reply, map the original `message.id`, recipient, and reply
+text.
 
 ### Send Reusable Media
 
@@ -118,21 +132,30 @@ First upload media:
 
 - Resource: `Media`
 - Operation: `Upload`
-- From: your WhatsApp sender number
 - Name: `promo_image`
 - Type: `Image`
 - Source: `Binary Property`
 - Binary Property: `data`
 
+Reusable media belongs to the Easyhook organization, not to one WABA or channel.
+The same `media_name` can be used by supported WhatsApp, Messenger, Instagram,
+and Telegram senders in that organization.
+
 Then send it:
 
 - Resource: `Message Action`
 - Operation: `Send Media`
-- From: your WhatsApp sender number
+- Channel: select a supported connected channel
 - To: customer WhatsApp ID
 - Type: `Image`
 - Media Reference Type: `Reusable Media Name`
 - Media Name: `promo_image`
+
+To read protected incoming media, map `message.media.url` from Easyhook Trigger
+into **Media → Download → Media URL**. The node authenticates with the Easyhook
+credential and returns the file in the selected binary field. Do not use a
+generic HTTP Request node without the API key: protected URLs intentionally
+return an authorization error.
 
 ### Send Template
 
@@ -230,6 +253,22 @@ Media links must use HTTPS and be downloadable by Meta without authentication. A
 - From: your WhatsApp sender number
 - To: customer WhatsApp number
 - Consent Flow: `Opt-In` or `Opt-Out`
+
+To store consent collected on a website, CRM, or external form, use
+`Record Opt-In or Opt-Out` instead. Select the marketing or service scope and
+provide auditable Evidence JSON, for example:
+
+```json
+{
+  "form_id": "lead-form-v3",
+  "accepted_at": "2026-07-29T18:00:00.000Z",
+  "source_url": "https://example.com/contact"
+}
+```
+
+Easyhook records this evidence but does not manufacture consent. The Easyhook
+customer remains responsible for collecting valid permission and honoring
+opt-outs.
 
 ### Hosted Onboarding
 
