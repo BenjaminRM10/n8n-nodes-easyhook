@@ -33,8 +33,6 @@ const whatsappOperations = [
   "sendFlow",
   "sendConsent",
   "recordConsent",
-  "sendOnboarding",
-  "createOnboarding",
 ];
 const recipientMessageOperations = [
   "sendText",
@@ -174,6 +172,7 @@ export class Easyhook implements INodeType {
           { name: "Media", value: "media" },
           { name: "Message Action", value: "message" },
           { name: "Message Control", value: "messageControl" },
+          { name: "Onboarding", value: "onboarding" },
           { name: "Template", value: "template" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
@@ -278,11 +277,6 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["whatsapp"] } },
         options: [
           {
-            name: "Get Onboarding URL",
-            value: "createOnboarding",
-            action: "Get a hosted onboarding URL",
-          },
-          {
             name: "Record Opt-In or Opt-Out",
             value: "recordConsent",
             action: "Record consent collected externally",
@@ -291,11 +285,6 @@ export class Easyhook implements INodeType {
             name: "Send Flow",
             value: "sendFlow",
             action: "Send an interactive flow",
-          },
-          {
-            name: "Send Onboarding Link",
-            value: "sendOnboarding",
-            action: "Create and send a hosted onboarding link",
           },
           {
             name: "Send Opt-In or Opt-Out",
@@ -309,6 +298,26 @@ export class Easyhook implements INodeType {
           },
         ],
         default: "sendTemplate",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["onboarding"] } },
+        options: [
+          {
+            name: "Get URL",
+            value: "createOnboarding",
+            action: "Get a hosted onboarding URL",
+          },
+          {
+            name: "Send URL",
+            value: "sendOnboarding",
+            action: "Create and send a hosted onboarding link",
+          },
+        ],
+        default: "createOnboarding",
       },
       {
         displayName: "Operation",
@@ -329,12 +338,90 @@ export class Easyhook implements INodeType {
         default: "list",
       },
       {
+        displayName: "Template Name",
+        name: "templateCreateName",
+        type: "string",
+        default: "",
+        required: true,
+        description: "Lowercase template name using letters numbers and underscores",
+        displayOptions: {
+          show: { resource: ["template"], operation: ["create"] },
+        },
+      },
+      {
+        displayName: "Language",
+        name: "templateCreateLanguage",
+        type: "options",
+        options: templateLanguageOptions,
+        default: "es_MX",
+        required: true,
+        displayOptions: {
+          show: { resource: ["template"], operation: ["create"] },
+        },
+      },
+      {
+        displayName: "Category",
+        name: "templateCreateCategory",
+        type: "options",
+        options: [
+          { name: "Authentication", value: "AUTHENTICATION" },
+          { name: "Marketing", value: "MARKETING" },
+          { name: "Utility", value: "UTILITY" },
+        ],
+        default: "UTILITY",
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ["template"],
+            operation: ["classify", "create"],
+          },
+        },
+      },
+      {
+        displayName: "Components (JSON)",
+        name: "templateCreateComponents",
+        type: "json",
+        default:
+          '[\n  {\n    "type": "BODY",\n    "text": "Tu pedido {{1}} fue enviado."\n  }\n]',
+        required: true,
+        description: "Meta template components array",
+        displayOptions: {
+          show: {
+            resource: ["template"],
+            operation: ["classify", "create"],
+          },
+        },
+      },
+      {
+        displayName: "Parameter Format",
+        name: "templateParameterFormat",
+        type: "options",
+        options: [
+          { name: "Named", value: "NAMED" },
+          { name: "Positional", value: "POSITIONAL" },
+        ],
+        default: "POSITIONAL",
+        displayOptions: {
+          show: { resource: ["template"], operation: ["create"] },
+        },
+      },
+      {
         displayName: "Operation",
         name: "operation",
         type: "options",
         noDataExpression: true,
         displayOptions: { show: { resource: ["template"] } },
         options: [
+          {
+            name: "Check Category",
+            value: "classify",
+            action: "Check a template category",
+          },
+          {
+            name: "Create",
+            value: "create",
+            action: "Send a template to meta for approval",
+          },
           { name: "List", value: "list", action: "List templates" },
           {
             name: "Sync From Meta",
@@ -372,11 +459,13 @@ export class Easyhook implements INodeType {
           'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
-            resource: ["message", "messageControl", "whatsapp", "template"],
+            resource: ["message", "messageControl", "whatsapp", "template", "onboarding"],
             operation: [
               ...messageOperations,
               ...messageControlOperations,
               ...whatsappOperations,
+              "sendOnboarding",
+              "create",
               "sync",
             ],
           },
@@ -409,7 +498,7 @@ export class Easyhook implements INodeType {
         description: "Customer WhatsApp number or channel recipient ID",
         displayOptions: {
           show: {
-            resource: ["message", "messageControl", "whatsapp"],
+            resource: ["message", "messageControl", "whatsapp", "onboarding"],
             operation: recipientMessageOperations,
           },
         },
@@ -1154,6 +1243,28 @@ export class Easyhook implements INodeType {
         },
       },
       {
+        displayName: "Channel to Connect",
+        name: "onboardingProvider",
+        type: "options",
+        options: [
+          { name: "Email (IMAP/SMTP)", value: "imap_smtp" },
+          { name: "Gmail", value: "gmail" },
+          { name: "Instagram", value: "instagram" },
+          { name: "Mercado Libre", value: "mercadolibre" },
+          { name: "Messenger", value: "messenger" },
+          { name: "Outlook", value: "outlook" },
+          { name: "Telegram", value: "telegram" },
+          { name: "WhatsApp", value: "whatsapp" },
+        ],
+        default: "whatsapp",
+        displayOptions: {
+          show: {
+            resource: ["onboarding", "whatsapp"],
+            operation: ["createOnboarding", "sendOnboarding"],
+          },
+        },
+      },
+      {
         displayName: "Connection",
         name: "onboardingSignupMode",
         type: "options",
@@ -1164,8 +1275,9 @@ export class Easyhook implements INodeType {
         default: "coexistence",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["onboarding", "whatsapp"],
             operation: ["createOnboarding", "sendOnboarding"],
+            onboardingProvider: ["whatsapp"],
           },
         },
       },
@@ -1180,7 +1292,7 @@ export class Easyhook implements INodeType {
         default: "es",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["onboarding", "whatsapp"],
             operation: ["createOnboarding", "sendOnboarding"],
           },
         },
@@ -1195,7 +1307,7 @@ export class Easyhook implements INodeType {
           "Optional HTTPS URL used after the customer completes onboarding",
         displayOptions: {
           show: {
-            resource: ["whatsapp"],
+            resource: ["onboarding", "whatsapp"],
             operation: ["createOnboarding", "sendOnboarding"],
           },
         },
@@ -1627,6 +1739,7 @@ function senderSupportsNodeOperation(
 ): boolean {
   const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
   if (resource === "email") return emailProviders.has(provider);
+  if (resource === "onboarding") return provider === "whatsapp";
   if (resource === "whatsapp" || resource === "template")
     return provider === "whatsapp";
   if (resource === "message") {
@@ -1668,7 +1781,8 @@ async function executeOperation(
   if (
     resource === "message" ||
     resource === "messageControl" ||
-    resource === "whatsapp"
+    resource === "whatsapp" ||
+    resource === "onboarding"
   )
     return executeMessageOperation.call(this, operation, itemIndex);
   if (resource === "email")
@@ -1692,15 +1806,20 @@ async function executeMessageOperation(
   itemIndex: number,
 ): Promise<IDataObject> {
   if (operation === "createOnboarding") {
+    const provider = this.getNodeParameter(
+      "onboardingProvider",
+      itemIndex,
+      "whatsapp",
+    ) as string;
     return easyhookRequest.call(
       this,
       "POST",
       "/v1/onboarding/sessions",
       cleanObject({
-        signup_mode: this.getNodeParameter(
-          "onboardingSignupMode",
-          itemIndex,
-        ) as string,
+        provider,
+        signup_mode: provider === "whatsapp"
+          ? this.getNodeParameter("onboardingSignupMode", itemIndex) as string
+          : undefined,
         language: this.getNodeParameter(
           "onboardingLanguage",
           itemIndex,
@@ -2070,6 +2189,11 @@ async function executeMessageOperation(
 
   if (operation === "sendOnboarding") {
     const to = this.getNodeParameter("to", itemIndex) as string;
+    const provider = this.getNodeParameter(
+      "onboardingProvider",
+      itemIndex,
+      "whatsapp",
+    ) as string;
     return easyhookRequest.call(
       this,
       "POST",
@@ -2077,10 +2201,10 @@ async function executeMessageOperation(
       cleanObject({
         from,
         to,
-        signup_mode: this.getNodeParameter(
-          "onboardingSignupMode",
-          itemIndex,
-        ) as string,
+        provider,
+        signup_mode: provider === "whatsapp"
+          ? this.getNodeParameter("onboardingSignupMode", itemIndex) as string
+          : undefined,
         language: this.getNodeParameter(
           "onboardingLanguage",
           itemIndex,
@@ -2189,7 +2313,47 @@ async function executeTemplateOperation(
   operation: string,
   itemIndex: number,
 ): Promise<IDataObject> {
+  if (operation === "classify") {
+    const category = this.getNodeParameter(
+      "templateCreateCategory",
+      itemIndex,
+    ) as string;
+    const components = parseCustomTemplateComponents(
+      this.getNodeParameter("templateCreateComponents", itemIndex, "[]"),
+      this,
+      itemIndex,
+    );
+    return easyhookRequest.call(this, "POST", "/v1/templates/classify", {
+      category,
+      components,
+    });
+  }
+
   const from = this.getNodeParameter("from", itemIndex) as string;
+  if (operation === "create") {
+    const components = parseCustomTemplateComponents(
+      this.getNodeParameter("templateCreateComponents", itemIndex, "[]"),
+      this,
+      itemIndex,
+    );
+    return easyhookRequest.call(this, "POST", "/v1/templates", {
+      from,
+      name: this.getNodeParameter("templateCreateName", itemIndex) as string,
+      language: this.getNodeParameter(
+        "templateCreateLanguage",
+        itemIndex,
+      ) as string,
+      category: this.getNodeParameter(
+        "templateCreateCategory",
+        itemIndex,
+      ) as string,
+      parameter_format: this.getNodeParameter(
+        "templateParameterFormat",
+        itemIndex,
+      ) as string,
+      components,
+    });
+  }
   if (operation === "list")
     return easyhookRequest.call(this, "GET", "/v1/templates", undefined, {
       from,

@@ -54,10 +54,11 @@ export class EasyhookTrigger implements INodeType {
           { name: "Mercado Libre", value: "mercadolibre" },
           { name: "Messenger", value: "messenger" },
           { name: "Outlook", value: "outlook" },
+          { name: "Select a Provider", value: "" },
           { name: "Telegram", value: "telegram" },
           { name: "WhatsApp", value: "whatsapp" },
         ],
-        default: "*",
+        default: "",
         required: true,
       },
       {
@@ -68,7 +69,8 @@ export class EasyhookTrigger implements INodeType {
           loadOptionsMethod: "getWebhookEvents",
           loadOptionsDependsOn: ["providers"],
         },
-        default: ["*"],
+        default: [],
+        required: true,
         description:
           'Events that Easyhook will deliver to this workflow. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
       },
@@ -179,8 +181,14 @@ export class EasyhookTrigger implements INodeType {
         }
 
         const provider = normalizeProvider(
-          this.getNodeParameter("providers", "*"),
+          this.getNodeParameter("providers", ""),
         );
+        if (!provider) {
+          throw new NodeOperationError(
+            this.getNode(),
+            "Select an Easyhook provider",
+          );
+        }
         const requestedScopeType = this.getNodeParameter(
           "scopeType",
           "organization",
@@ -196,12 +204,16 @@ export class EasyhookTrigger implements INodeType {
           },
         );
         const allowedEvents = new Set(readOptionValues(options, "events"));
-        const selectedEvents = this.getNodeParameter("events", [
-          "*",
-        ]) as string[];
+        const selectedEvents = this.getNodeParameter("events", []) as string[];
         const events = selectedEvents.filter((event) =>
           allowedEvents.has(event),
         );
+        if (events.length === 0) {
+          throw new NodeOperationError(
+            this.getNode(),
+            "Select at least one Easyhook event",
+          );
+        }
         const allowedScopes = new Set(readOptionValues(options, "scope_types"));
         const scopeType = allowedScopes.has(requestedScopeType)
           ? requestedScopeType
@@ -224,7 +236,7 @@ export class EasyhookTrigger implements INodeType {
             name,
             url: webhookUrl,
             providers: [provider],
-            events: events.length ? events : ["*"],
+            events,
             auth_type: "hmac",
             scope:
               scopeType === "organization"
@@ -304,6 +316,7 @@ async function loadWebhookOptions(
   key: "events" | "scope_types" | "scope_identifiers",
 ): Promise<INodePropertyOptions[]> {
   const provider = normalizeProvider(this.getCurrentNodeParameter("providers"));
+  if (!provider) return [];
   const scopeType = String(
     this.getCurrentNodeParameter("scopeType") ?? "organization",
   );
@@ -323,25 +336,14 @@ async function loadWebhookOptions(
     const value = typeof option.value === "string" ? option.value : "";
     if (!name || !value || seen.has(value)) return [];
     seen.add(value);
-    return [{ name: disambiguateWebhookEventName(key, name, value), value }];
+    return [{ name, value }];
   });
-}
-
-function disambiguateWebhookEventName(
-  key: "events" | "scope_types" | "scope_identifiers",
-  name: string,
-  value: string,
-): string {
-  if (key !== "events") return name;
-  if (value === "message.file") return "Messenger and Instagram files";
-  if (value === "message.document") return "WhatsApp documents";
-  return name;
 }
 
 function normalizeProvider(value: unknown): string {
   if (Array.isArray(value))
-    return typeof value[0] === "string" ? value[0] : "*";
-  return typeof value === "string" && value ? value : "*";
+    return typeof value[0] === "string" ? value[0] : "";
+  return typeof value === "string" ? value : "";
 }
 
 function readOptionValues(response: IDataObject, key: string): string[] {

@@ -11,7 +11,9 @@ developers normally automate:
   lists channels that support the selected operation.
 - `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
   reply, forward, read/unread, archive, and create/edit/send drafts.
-- `WhatsApp Only` groups templates, Flows, consent, and onboarding links.
+- `Onboarding` creates or sends hosted connection links for any supported channel.
+- `WhatsApp Only` groups WhatsApp sends, templates, Flows, and consent.
+- `Template` lists, synchronizes, checks categories, creates, and deletes templates.
 - Use standard or humanized delivery on WhatsApp, Messenger, Instagram, and Telegram.
 - Schedule supported WhatsApp, Messenger, Instagram, Telegram, and Mercado Libre messages.
 - Upload organization-wide reusable media and send it later by `media_name`.
@@ -272,9 +274,12 @@ opt-outs.
 
 ### Hosted Onboarding
 
-- Resource: `WhatsApp Only`
+- Resource: `Onboarding`
 - Operation: `Get Onboarding URL` or `Send Onboarding Link`
-- Connection: `WhatsApp Coexistence` or `WhatsApp Business API`
+- Provider: WhatsApp, Messenger, Instagram, Telegram, Gmail, Outlook,
+  IMAP/SMTP, or Mercado Libre
+- Connection: `WhatsApp Coexistence` or `WhatsApp Business API` when the
+  provider is WhatsApp
 - Language: `Spanish` or `English`
 - Return URL: optional HTTPS destination after completion
 
@@ -286,6 +291,10 @@ localized by Easyhook and always includes the hosted URL.
 ### Webhook Automation
 
 Easyhook webhooks are handled with **Easyhook Trigger**. It is not a polling node: activation creates a `/v1/webhooks` subscription for the n8n Production URL and deactivation removes it. Deliveries are authenticated automatically with `X-Easyhook-Signature: sha256=<hex>`.
+
+The trigger starts with no provider or event selected. Choose one provider and
+at least one compatible event. The option names and values match the Easyhook
+portal; `All events` must be selected alone.
 
 Useful event scopes:
 
@@ -301,7 +310,8 @@ Useful event scopes:
 - `media.*`: media lifecycle events, when enabled in Easyhook
 - `message.text`, `message.image`, `status.failed`: narrower event filters matching the Easyhook portal
 
-Messenger and Instagram hooks are configured in the Easyhook portal with the provider filter. In n8n you can also label a trigger as `messenger.message.*` or `instagram.message.*` for workflow clarity.
+Messenger and Instagram hooks use the same event values with a separate
+provider filter. Do not add provider prefixes to event names.
 
 ### Receive Coexistence History
 
