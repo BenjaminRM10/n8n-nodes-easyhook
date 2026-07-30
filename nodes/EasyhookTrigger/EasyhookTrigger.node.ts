@@ -317,11 +317,25 @@ async function loadWebhookOptions(
       scope_type: scopeType,
     },
   );
+  const seen = new Set<string>();
   return readArray(response, key).flatMap((option) => {
     const name = typeof option.name === "string" ? option.name : "";
     const value = typeof option.value === "string" ? option.value : "";
-    return name && value ? [{ name, value }] : [];
+    if (!name || !value || seen.has(value)) return [];
+    seen.add(value);
+    return [{ name: disambiguateWebhookEventName(key, name, value), value }];
   });
+}
+
+function disambiguateWebhookEventName(
+  key: "events" | "scope_types" | "scope_identifiers",
+  name: string,
+  value: string,
+): string {
+  if (key !== "events") return name;
+  if (value === "message.file") return "Messenger and Instagram files";
+  if (value === "message.document") return "WhatsApp documents";
+  return name;
 }
 
 function normalizeProvider(value: unknown): string {

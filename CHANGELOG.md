@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.26
+
+- Distinguish WhatsApp documents from Messenger and Instagram files in the
+  trigger event selector.
+- Remove duplicate webhook options defensively when loading dynamic events.
+
 ## 0.2.25
 
 - Use provider-native `account.id` values in channel selectors, including Meta
