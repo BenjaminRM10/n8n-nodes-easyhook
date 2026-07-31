@@ -29,6 +29,7 @@ const messageControlOperations = [
   "sendReply",
 ];
 const whatsappOperations = [
+  "getConsentStatus",
   "sendTemplate",
   "sendFlow",
   "sendConsent",
@@ -45,6 +46,7 @@ const recipientMessageOperations = [
   "sendFlow",
   "sendConsent",
   "recordConsent",
+  "getConsentStatus",
   "sendOnboarding",
 ];
 const emailOperations = [
@@ -276,6 +278,11 @@ export class Easyhook implements INodeType {
         noDataExpression: true,
         displayOptions: { show: { resource: ["whatsapp"] } },
         options: [
+          {
+            name: "Get Consent Status",
+            value: "getConsentStatus",
+            action: "Get consent status for a contact",
+          },
           {
             name: "Record Opt-In or Opt-Out",
             value: "recordConsent",
@@ -2139,6 +2146,17 @@ async function executeMessageOperation(
       to,
       mode,
     });
+  }
+
+  if (operation === "getConsentStatus") {
+    const contact = this.getNodeParameter("to", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "GET",
+      "/v1/consent/status",
+      undefined,
+      { from, contact },
+    );
   }
 
   if (operation === "recordConsent") {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.28
+
+- Add `Get Consent Status` under WhatsApp Only for reading a contact's service
+  and marketing consent within the selected sender's WABA.
+
 ## 0.2.26
 
 - Distinguish WhatsApp documents from Messenger and Instagram files in the

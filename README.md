@@ -272,6 +272,10 @@ Easyhook records this evidence but does not manufacture consent. The Easyhook
 customer remains responsible for collecting valid permission and honoring
 opt-outs.
 
+Use `Get Consent Status` with the same sender and contact to read the current
+service and marketing states. Each scope returns `opt_in`, `opt_out`,
+`pending_opt_out`, or `unknown`; `unknown` is not permission.
+
 ### Hosted Onboarding
 
 - Resource: `Onboarding`
