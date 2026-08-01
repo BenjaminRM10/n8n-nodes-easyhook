@@ -6,7 +6,7 @@ Easyhook is a lightweight multichannel messaging API for WhatsApp, Telegram,
 Gmail, Outlook, generic IMAP/SMTP email, and Mercado Libre. This node focuses on the workflows
 developers normally automate:
 
-- `Message Action` groups cross-channel text and media actions.
+- `Message Action` groups cross-channel text and media actions. Use **Send Quick Replies** for Messenger or Instagram text buttons.
 - `Message Control` groups read, typing, reply, and reaction actions and only
   lists channels that support the selected operation.
 - `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
@@ -80,6 +80,18 @@ accepted by the API, but new workflows do not need prefixes.
 
 Choose **Delivery: Humanized** to apply the supported read, pause, and typing
 behavior before sending through WhatsApp, Messenger, Instagram, or Telegram.
+
+### Send Messenger Or Instagram Quick Replies
+
+- Resource: `Message Action`
+- Operation: `Send Quick Replies`
+- Channel: select a connected Messenger Page or Instagram account
+- To: map the provider contact ID from `contact.id`
+- Body: prompt shown above the buttons
+- Quick Replies: add 1–13 title/payload pairs
+
+The title is visible and accepts up to 20 characters. The payload is returned
+unchanged in `message.quick_reply.payload`; use it to route the workflow.
 
 For scheduled text, media, or templates, add:
 

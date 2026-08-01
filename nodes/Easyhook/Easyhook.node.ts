@@ -21,7 +21,7 @@ import {
   readArray,
 } from "../../shared/EasyhookClient";
 
-const messageOperations = ["sendText", "sendMedia"];
+const messageOperations = ["sendText", "sendMedia", "sendQuickReplies"];
 const messageControlOperations = [
   "sendRead",
   "sendTyping",
@@ -38,6 +38,7 @@ const whatsappOperations = [
 const recipientMessageOperations = [
   "sendText",
   "sendMedia",
+  "sendQuickReplies",
   "sendRead",
   "sendTyping",
   "sendReaction",
@@ -263,6 +264,11 @@ export class Easyhook implements INodeType {
         displayOptions: { show: { resource: ["message"] } },
         options: [
           { name: "Send Media", value: "sendMedia", action: "Send media" },
+          {
+            name: "Send Quick Replies",
+            value: "sendQuickReplies",
+            action: "Send quick reply buttons",
+          },
           {
             name: "Send Text",
             value: "sendText",
@@ -535,7 +541,47 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendText"],
+            operation: ["sendText", "sendQuickReplies"],
+          },
+        },
+      },
+      {
+        displayName: "Quick Replies",
+        name: "quickReplies",
+        type: "fixedCollection",
+        typeOptions: { multipleValues: true },
+        default: {},
+        placeholder: "Add Quick Reply",
+        required: true,
+        options: [
+          {
+            displayName: "Quick Reply",
+            name: "reply",
+            values: [
+              {
+                displayName: "Title",
+                name: "title",
+                type: "string",
+                default: "",
+                required: true,
+                description: "Visible button text, up to 20 characters",
+              },
+              {
+                displayName: "Payload",
+                name: "payload",
+                type: "string",
+                default: "",
+                required: true,
+                description:
+                  "Stable value returned when the contact selects this reply",
+              },
+            ],
+          },
+        ],
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendQuickReplies"],
           },
         },
       },
@@ -1750,6 +1796,8 @@ function senderSupportsNodeOperation(
   if (resource === "whatsapp" || resource === "template")
     return provider === "whatsapp";
   if (resource === "message") {
+    if (operation === "sendQuickReplies")
+      return ["messenger", "instagram"].includes(provider);
     if (operation === "sendMedia")
       return ["whatsapp", "messenger", "instagram", "telegram"].includes(
         provider,
@@ -1888,6 +1936,31 @@ async function executeMessageOperation(
       }),
       undefined,
       at ? requestHeaders : undefined,
+    );
+  }
+
+  if (operation === "sendQuickReplies") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const body = this.getNodeParameter("body", itemIndex) as string;
+    const collection = this.getNodeParameter(
+      "quickReplies",
+      itemIndex,
+      {},
+    ) as IDataObject;
+    const quickReplies = Array.isArray(collection.reply)
+      ? collection.reply.map((value) => {
+          const reply = value as IDataObject;
+          return {
+            title: String(reply.title ?? ""),
+            payload: String(reply.payload ?? ""),
+          };
+        })
+      : [];
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/quick-replies",
+      { from, to, body, quick_replies: quickReplies },
     );
   }
 
