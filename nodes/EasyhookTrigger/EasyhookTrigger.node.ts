@@ -50,6 +50,7 @@ export class EasyhookTrigger implements INodeType {
           { name: "All Providers", value: "*" },
           { name: "Email (IMAP/SMTP)", value: "imap_smtp" },
           { name: "Gmail", value: "gmail" },
+          { name: "Google Business Profile", value: "google_business_profile" },
           { name: "Instagram", value: "instagram" },
           { name: "Mercado Libre", value: "mercadolibre" },
           { name: "Messenger", value: "messenger" },

@@ -2,8 +2,8 @@
 
 Easyhook integration for n8n.
 
-Easyhook is a lightweight multichannel messaging API for WhatsApp, Telegram,
-Gmail, Outlook, generic IMAP/SMTP email, and Mercado Libre. This node focuses on the workflows
+Easyhook is a lightweight multichannel messaging and reviews API for WhatsApp, Telegram,
+Gmail, Outlook, generic IMAP/SMTP email, Mercado Libre, and Google Business Profile. This node focuses on the workflows
 developers normally automate:
 
 - `Message Action` groups cross-channel text and media actions. Use **Send Quick Replies** for Messenger or Instagram text buttons.
@@ -13,6 +13,7 @@ developers normally automate:
   reply, forward, read/unread, archive, and create/edit/send drafts.
 - `Onboarding` creates or sends hosted connection links for any supported channel.
 - `WhatsApp Only` groups WhatsApp sends, templates, Flows, and consent.
+- `Review` lists Google reviews, returns the aggregate location rating, and publishes business replies.
 - `Template` lists, synchronizes, checks categories, creates, and deletes templates.
 - Use standard or humanized delivery on WhatsApp, Messenger, Instagram, and Telegram.
 - Schedule supported WhatsApp, Messenger, Instagram, Telegram, and Mercado Libre messages.
@@ -63,6 +64,22 @@ n8n registers its Production URL in Easyhook automatically and stores the HMAC s
 WhatsApp uses the same three levels as the Easyhook portal: **Entire Organization → WABA → WhatsApp Number**. Selecting a WABA receives matching events from all numbers connected to it. Meta Business Portfolios stay internal and never appear as n8n scopes.
 
 The trigger outputs the normalized Easyhook webhook JSON directly.
+
+For Google Business Profile, choose provider **Google Business Profile** and
+subscribe to `review.created` and/or `review.updated`. Map `review.id` when a
+later node needs to reply to that review.
+
+### Manage Google Reviews
+
+- Resource: `Review`
+- Operation: `List Reviews`, `Get Rating`, or `Reply to Review`
+- Location: select a connected Google Business Profile location
+
+`List Reviews` returns normalized reviews and `next_page_token`. `Get Rating`
+returns the aggregate rating and total review count. To respond publicly,
+choose `Reply to Review`, map `review.id` from the trigger or list result, and
+enter the reply. Google may update an existing reply when the same review is
+answered again.
 
 ### Send Text
 

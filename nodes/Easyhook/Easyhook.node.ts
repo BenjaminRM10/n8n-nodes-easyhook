@@ -176,10 +176,36 @@ export class Easyhook implements INodeType {
           { name: "Message Action", value: "message" },
           { name: "Message Control", value: "messageControl" },
           { name: "Onboarding", value: "onboarding" },
+          { name: "Review", value: "review" },
           { name: "Template", value: "template" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
         default: "message",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["review"] } },
+        options: [
+          {
+            name: "Get Rating",
+            value: "getReviewRating",
+            action: "Get the location rating",
+          },
+          {
+            name: "List Reviews",
+            value: "listReviews",
+            action: "List reviews for a location",
+          },
+          {
+            name: "Reply to Review",
+            value: "replyToReview",
+            action: "Reply publicly to a review",
+          },
+        ],
+        default: "listReviews",
       },
       {
         displayName: "Operation",
@@ -458,6 +484,77 @@ export class Easyhook implements INodeType {
           },
         ],
         default: "cancel",
+      },
+      {
+        displayName: "Location Name or ID",
+        name: "reviewLocation",
+        type: "options",
+        typeOptions: {
+          loadOptionsMethod: "getReviewLocations",
+        },
+        default: "",
+        required: true,
+        description:
+          'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+        displayOptions: {
+          show: {
+            resource: ["review"],
+          },
+        },
+      },
+      {
+        displayName: "Review ID",
+        name: "reviewId",
+        type: "string",
+        default: "",
+        required: true,
+        displayOptions: {
+          show: {
+            resource: ["review"],
+            operation: ["replyToReview"],
+          },
+        },
+      },
+      {
+        displayName: "Reply",
+        name: "reviewReply",
+        type: "string",
+        typeOptions: { rows: 4 },
+        default: "",
+        required: true,
+        description: "Public reply that will appear on the Google Business Profile",
+        displayOptions: {
+          show: {
+            resource: ["review"],
+            operation: ["replyToReview"],
+          },
+        },
+      },
+      {
+        displayName: "Page Size",
+        name: "reviewPageSize",
+        type: "number",
+        typeOptions: { minValue: 1, maxValue: 50 },
+        default: 20,
+        displayOptions: {
+          show: {
+            resource: ["review"],
+            operation: ["listReviews"],
+          },
+        },
+      },
+      {
+        displayName: "Next Page Cursor",
+        name: "reviewPageCursor",
+        type: "string",
+        default: "",
+        description: "Optional next page cursor returned by the previous request",
+        displayOptions: {
+          show: {
+            resource: ["review"],
+            operation: ["listReviews"],
+          },
+        },
       },
       {
         displayName: "Channel Name or ID",
@@ -1591,6 +1688,18 @@ export class Easyhook implements INodeType {
           return [{ name, value }];
         });
       },
+      async getReviewLocations(
+        this: ILoadOptionsFunctions,
+      ): Promise<INodePropertyOptions[]> {
+        const response = await easyhookRequest.call(this, "GET", "/v1/senders");
+        return readArray(response, "senders").flatMap((option) => {
+          if (option.provider !== "google_business_profile") return [];
+          const name = typeof option.name === "string" ? option.name : "";
+          const value =
+            typeof option.account_id === "string" ? option.account_id : "";
+          return name && value ? [{ name, value }] : [];
+        });
+      },
       async getMedia(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
@@ -1846,11 +1955,60 @@ async function executeOperation(
     return executeMediaOperation.call(this, operation, itemIndex);
   if (resource === "template")
     return executeTemplateOperation.call(this, operation, itemIndex);
+  if (resource === "review")
+    return executeReviewOperation.call(this, operation, itemIndex);
   if (resource === "scheduledMessage")
     return executeScheduledMessageOperation.call(this, operation, itemIndex);
   throw new NodeOperationError(
     this.getNode(),
     `Unsupported resource: ${resource}`,
+    { itemIndex },
+  );
+}
+
+async function executeReviewOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  const from = this.getNodeParameter("reviewLocation", itemIndex) as string;
+  if (operation === "getReviewRating") {
+    return easyhookRequest.call(
+      this,
+      "GET",
+      "/v1/reviews/summary",
+      undefined,
+      { from },
+    );
+  }
+  if (operation === "listReviews") {
+    return easyhookRequest.call(
+      this,
+      "GET",
+      "/v1/reviews",
+      undefined,
+      cleanObject({
+        from,
+        page_size: this.getNodeParameter("reviewPageSize", itemIndex, 20) as number,
+        page_token: this.getNodeParameter("reviewPageCursor", itemIndex, "") as string,
+      }),
+    );
+  }
+  if (operation === "replyToReview") {
+    const reviewId = this.getNodeParameter("reviewId", itemIndex) as string;
+    return easyhookRequest.call(
+      this,
+      "PUT",
+      `/v1/reviews/${encodeURIComponent(reviewId)}/reply`,
+      {
+        from,
+        comment: this.getNodeParameter("reviewReply", itemIndex) as string,
+      },
+    );
+  }
+  throw new NodeOperationError(
+    this.getNode(),
+    `Unsupported review operation: ${operation}`,
     { itemIndex },
   );
 }
