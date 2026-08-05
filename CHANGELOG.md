@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.31
+
+- Restrict humanized delivery sender choices to WhatsApp, Messenger, Instagram,
+  and Telegram.
+- Clarify that provider presence indicators are best-effort and never prevent
+  the underlying message from being sent.
+
 ## 0.2.28
 
 - Add `Get Consent Status` under WhatsApp Only for reading a contact's service

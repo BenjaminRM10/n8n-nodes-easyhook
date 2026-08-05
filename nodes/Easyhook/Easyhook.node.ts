@@ -562,6 +562,7 @@ export class Easyhook implements INodeType {
         type: "options",
         typeOptions: {
           loadOptionsMethod: "getSenders",
+          loadOptionsDependsOn: ["resource", "operation", "humanizedDelivery"],
         },
         default: "",
         required: true,
@@ -877,7 +878,7 @@ export class Easyhook implements INodeType {
         ],
         default: "standard",
         description:
-          "Adds supported read, pause, and typing behavior before sending through WhatsApp, Messenger, Instagram, or Telegram",
+          "For WhatsApp, Messenger, Instagram, and Telegram. Presence indicators are applied when supported; the message still sends if an indicator is unavailable.",
         displayOptions: {
           show: {
             resource: ["message"],
@@ -1651,11 +1652,21 @@ export class Easyhook implements INodeType {
         const operation = String(
           this.getCurrentNodeParameter("operation") ?? "",
         );
+        const humanizedDelivery = String(
+          this.getCurrentNodeParameter("humanizedDelivery") ?? "standard",
+        );
         const seen = new Set<string>();
         return readArray(response, "senders").flatMap((option) => {
           const provider =
             typeof option.provider === "string" ? option.provider : "";
           if (!senderSupportsNodeOperation(provider, resource, operation))
+            return [];
+          if (
+            resource === "message" &&
+            operation === "sendText" &&
+            humanizedDelivery === "humanized" &&
+            !["whatsapp", "messenger", "instagram", "telegram"].includes(provider)
+          )
             return [];
           const label = typeof option.name === "string" ? option.name : "";
           const address =

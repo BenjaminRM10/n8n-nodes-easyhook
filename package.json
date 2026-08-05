@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-easyhook",
-  "version": "0.2.30",
+  "version": "0.2.31",
   "description": "n8n nodes for the Easyhook messaging and reviews API.",
   "license": "MIT",
   "author": {
