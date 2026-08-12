@@ -21,7 +21,12 @@ import {
   readArray,
 } from "../../shared/EasyhookClient";
 
-const messageOperations = ["sendText", "sendMedia", "sendQuickReplies"];
+const messageOperations = [
+  "sendText",
+  "sendMedia",
+  "sendInteractive",
+  "sendQuickReplies",
+];
 const messageControlOperations = [
   "sendRead",
   "sendTyping",
@@ -38,6 +43,7 @@ const whatsappOperations = [
 const recipientMessageOperations = [
   "sendText",
   "sendMedia",
+  "sendInteractive",
   "sendQuickReplies",
   "sendRead",
   "sendTyping",
@@ -289,6 +295,11 @@ export class Easyhook implements INodeType {
         noDataExpression: true,
         displayOptions: { show: { resource: ["message"] } },
         options: [
+          {
+            name: "Send Buttons",
+            value: "sendInteractive",
+            action: "Send interactive buttons",
+          },
           { name: "Send Media", value: "sendMedia", action: "Send media" },
           {
             name: "Send Quick Replies",
@@ -639,7 +650,67 @@ export class Easyhook implements INodeType {
         displayOptions: {
           show: {
             resource: ["message"],
-            operation: ["sendText", "sendQuickReplies"],
+            operation: ["sendText", "sendInteractive", "sendQuickReplies"],
+          },
+        },
+      },
+      {
+        displayName: "Buttons",
+        name: "interactiveButtons",
+        type: "fixedCollection",
+        typeOptions: { multipleValues: true },
+        default: {},
+        placeholder: "Add Button",
+        required: true,
+        options: [
+          {
+            displayName: "Button",
+            name: "button",
+            values: [
+              {
+                displayName: "Type",
+                name: "type",
+                type: "options",
+                options: [
+                  { name: "Reply", value: "reply" },
+                  { name: "Open URL", value: "url" },
+                ],
+                default: "reply",
+              },
+              {
+                displayName: "Title",
+                name: "title",
+                type: "string",
+                default: "",
+                required: true,
+                description: "Visible button text, up to 20 characters",
+              },
+              {
+                displayName: "Payload",
+                name: "payload",
+                type: "string",
+                default: "",
+                required: true,
+                description:
+                  "Stable value returned in message.quick_reply.payload",
+                displayOptions: { show: { type: ["reply"] } },
+              },
+              {
+                displayName: "URL",
+                name: "url",
+                type: "string",
+                default: "",
+                required: true,
+                placeholder: "https://example.com/map",
+                displayOptions: { show: { type: ["url"] } },
+              },
+            ],
+          },
+        ],
+        displayOptions: {
+          show: {
+            resource: ["message"],
+            operation: ["sendInteractive"],
           },
         },
       },
@@ -1916,6 +1987,10 @@ function senderSupportsNodeOperation(
   if (resource === "whatsapp" || resource === "template")
     return provider === "whatsapp";
   if (resource === "message") {
+    if (operation === "sendInteractive")
+      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+        provider,
+      );
     if (operation === "sendQuickReplies")
       return ["messenger", "instagram"].includes(provider);
     if (operation === "sendMedia")
@@ -2130,6 +2205,35 @@ async function executeMessageOperation(
       "POST",
       "/v1/messages/quick-replies",
       { from, to, body, quick_replies: quickReplies },
+    );
+  }
+
+  if (operation === "sendInteractive") {
+    const to = this.getNodeParameter("to", itemIndex) as string;
+    const body = this.getNodeParameter("body", itemIndex) as string;
+    const collection = this.getNodeParameter(
+      "interactiveButtons",
+      itemIndex,
+      {},
+    ) as IDataObject;
+    const buttons = Array.isArray(collection.button)
+      ? collection.button.map((value) => {
+          const button = value as IDataObject;
+          const type = String(button.type ?? "reply");
+          return cleanObject({
+            type,
+            title: String(button.title ?? ""),
+            payload:
+              type === "reply" ? String(button.payload ?? "") : undefined,
+            url: type === "url" ? String(button.url ?? "") : undefined,
+          });
+        })
+      : [];
+    return easyhookRequest.call(
+      this,
+      "POST",
+      "/v1/messages/interactive",
+      { from, to, body, buttons },
     );
   }
 

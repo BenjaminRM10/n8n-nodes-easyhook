@@ -6,7 +6,7 @@ Easyhook is a lightweight multichannel messaging and reviews API for WhatsApp, T
 Gmail, Outlook, generic IMAP/SMTP email, Mercado Libre, and Google Business Profile. This node focuses on the workflows
 developers normally automate:
 
-- `Message Action` groups cross-channel text and media actions. Use **Send Quick Replies** for Messenger or Instagram text buttons.
+- `Message Action` groups cross-channel text and media actions. Use **Send Buttons** for standardized reply or URL buttons on WhatsApp, Messenger, Instagram, and Telegram. Use **Send Quick Replies** when Messenger or Instagram needs more than three text choices.
 - `Message Control` groups read, typing, reply, and reaction actions and only
   lists channels that support the selected operation.
 - `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
