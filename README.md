@@ -61,6 +61,12 @@ Use **Easyhook Trigger** as the first node in a workflow.
 4. Choose a scope. For WABAs, WhatsApp numbers, Messenger Pages, or Instagram accounts, select a connected account from the list loaded with your API credential.
 5. Activate the workflow.
 
+Public comments require their own connection and provider. Choose **Facebook
+Comments** or **Instagram Comments**, then subscribe to `comment.*`. Messenger
+and Instagram providers remain limited to private messages. Comment events
+include `comment.post.id` and may include publication context under
+`interaction.object`.
+
 n8n registers its Production URL in Easyhook automatically and stores the HMAC signing secret in the workflow's private static data. Deactivating or deleting the workflow removes the Easyhook subscription. No portal setup or secret copy/paste is required.
 
 WhatsApp uses the same three levels as the Easyhook portal: **Entire Organization → WABA → WhatsApp Number**. Selecting a WABA receives matching events from all numbers connected to it. Meta Business Portfolios stay internal and never appear as n8n scopes.

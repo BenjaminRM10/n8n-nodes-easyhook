@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.35
+
+- Separate Facebook and Instagram public-comment providers from Messenger and
+  Instagram Direct connections.
+- Add the dedicated comment providers to Trigger, onboarding, and connected
+  account selectors while keeping `comment.*` normalized.
+
 ## 0.2.31
 
 - Restrict humanized delivery sender choices to WhatsApp, Messenger, Instagram,

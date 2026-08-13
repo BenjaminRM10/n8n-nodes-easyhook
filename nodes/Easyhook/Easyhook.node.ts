@@ -1536,8 +1536,10 @@ export class Easyhook implements INodeType {
         type: "options",
         options: [
           { name: "Email (IMAP/SMTP)", value: "imap_smtp" },
+          { name: "Facebook Comments", value: "facebook_comments" },
           { name: "Gmail", value: "gmail" },
           { name: "Instagram", value: "instagram" },
+          { name: "Instagram Comments", value: "instagram_comments" },
           { name: "Mercado Libre", value: "mercadolibre" },
           { name: "Messenger", value: "messenger" },
           { name: "Outlook", value: "outlook" },
@@ -2049,7 +2051,7 @@ function senderSupportsNodeOperation(
   operation: string,
 ): boolean {
   const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
-  if (resource === "comment") return ["messenger", "instagram"].includes(provider);
+  if (resource === "comment") return ["facebook_comments", "instagram_comments"].includes(provider);
   if (resource === "email") return emailProviders.has(provider);
   if (resource === "onboarding") return provider === "whatsapp";
   if (resource === "whatsapp" || resource === "template")
