@@ -177,6 +177,7 @@ export class Easyhook implements INodeType {
             name: "Cancel Scheduled Message",
             value: "scheduledMessage",
           },
+          { name: "Comment", value: "comment" },
           { name: "Email Only", value: "email" },
           { name: "Media", value: "media" },
           { name: "Message Action", value: "message" },
@@ -187,6 +188,18 @@ export class Easyhook implements INodeType {
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
         default: "message",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["comment"] } },
+        options: [
+          { name: "List", value: "listComments", action: "List comments on a post or media object" },
+          { name: "Reply", value: "replyComment", action: "Reply publicly to a comment" },
+        ],
+        default: "listComments",
       },
       {
         displayName: "Operation",
@@ -495,6 +508,59 @@ export class Easyhook implements INodeType {
           },
         ],
         default: "cancel",
+      },
+      {
+        displayName: "Channel Name or ID",
+        name: "commentFrom",
+        type: "options",
+        typeOptions: { loadOptionsMethod: "getSenders", loadOptionsDependsOn: ["resource", "operation"] },
+        default: "",
+        required: true,
+        description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+        displayOptions: { show: { resource: ["comment"] } },
+      },
+      {
+        displayName: "Post or Media ID",
+        name: "commentObjectId",
+        type: "string",
+        default: "",
+        required: true,
+        description: "Facebook post ID or Instagram media ID from the incoming comment event",
+        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
+      },
+      {
+        displayName: "Comment ID",
+        name: "socialCommentId",
+        type: "string",
+        default: "",
+        required: true,
+        description: "ID of the incoming Easyhook comment event",
+        displayOptions: { show: { resource: ["comment"], operation: ["replyComment"] } },
+      },
+      {
+        displayName: "Reply",
+        name: "commentReply",
+        type: "string",
+        typeOptions: { rows: 3 },
+        default: "",
+        required: true,
+        displayOptions: { show: { resource: ["comment"], operation: ["replyComment"] } },
+      },
+      {
+        displayName: "Limit",
+        name: "commentLimit",
+        type: "number",
+        typeOptions: { minValue: 1, maxValue: 100 },
+        default: 50,
+        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
+      },
+      {
+        displayName: "After Cursor",
+        name: "commentAfter",
+        type: "string",
+        default: "",
+        description: "Optional paging.after cursor returned by the previous request",
+        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
       },
       {
         displayName: "Location Name or ID",
@@ -1983,6 +2049,7 @@ function senderSupportsNodeOperation(
   operation: string,
 ): boolean {
   const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
+  if (resource === "comment") return ["messenger", "instagram"].includes(provider);
   if (resource === "email") return emailProviders.has(provider);
   if (resource === "onboarding") return provider === "whatsapp";
   if (resource === "whatsapp" || resource === "template")
@@ -2045,6 +2112,8 @@ async function executeOperation(
     return executeTemplateOperation.call(this, operation, itemIndex);
   if (resource === "review")
     return executeReviewOperation.call(this, operation, itemIndex);
+  if (resource === "comment")
+    return executeCommentOperation.call(this, operation, itemIndex);
   if (resource === "scheduledMessage")
     return executeScheduledMessageOperation.call(this, operation, itemIndex);
   throw new NodeOperationError(
@@ -2052,6 +2121,30 @@ async function executeOperation(
     `Unsupported resource: ${resource}`,
     { itemIndex },
   );
+}
+
+async function executeCommentOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  const from = this.getNodeParameter("commentFrom", itemIndex) as string;
+  if (operation === "listComments") {
+    return easyhookRequest.call(this, "GET", "/v1/comments", undefined, {
+      from,
+      object_id: this.getNodeParameter("commentObjectId", itemIndex) as string,
+      limit: this.getNodeParameter("commentLimit", itemIndex, 50) as number,
+      after: this.getNodeParameter("commentAfter", itemIndex, "") as string,
+    });
+  }
+  if (operation === "replyComment") {
+    const commentId = this.getNodeParameter("socialCommentId", itemIndex) as string;
+    return easyhookRequest.call(this, "POST", `/v1/comments/${encodeURIComponent(commentId)}/reply`, {
+      from,
+      message: this.getNodeParameter("commentReply", itemIndex) as string,
+    });
+  }
+  throw new NodeOperationError(this.getNode(), `Unsupported comment operation: ${operation}`, { itemIndex });
 }
 
 async function executeReviewOperation(

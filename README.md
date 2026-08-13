@@ -11,6 +11,8 @@ developers normally automate:
   lists channels that support the selected operation.
 - `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
   reply, forward, read/unread, archive, and create/edit/send drafts.
+- `Comment` lists public Facebook Page and Instagram professional-account
+  comments and publishes public replies without treating them as private messages.
 - `Onboarding` creates or sends hosted connection links for any supported channel.
 - `WhatsApp Only` groups WhatsApp sends, templates, Flows, and consent.
 - `Review` lists Google reviews, returns the aggregate location rating, and publishes business replies.
