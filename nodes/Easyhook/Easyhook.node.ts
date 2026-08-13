@@ -1476,6 +1476,7 @@ export class Easyhook implements INodeType {
           { name: "Messenger", value: "messenger" },
           { name: "Outlook", value: "outlook" },
           { name: "Telegram", value: "telegram" },
+          { name: "TikTok Business", value: "tiktok" },
           { name: "WhatsApp", value: "whatsapp" },
         ],
         default: "whatsapp",
@@ -1988,13 +1989,13 @@ function senderSupportsNodeOperation(
     return provider === "whatsapp";
   if (resource === "message") {
     if (operation === "sendInteractive")
-      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok"].includes(
         provider,
       );
     if (operation === "sendQuickReplies")
       return ["messenger", "instagram"].includes(provider);
     if (operation === "sendMedia")
-      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok"].includes(
         provider,
       );
     return [
@@ -2003,19 +2004,20 @@ function senderSupportsNodeOperation(
       "instagram",
       "telegram",
       "mercadolibre",
+      "tiktok",
     ].includes(provider);
   }
   if (resource === "messageControl") {
     if (operation === "sendRead")
-      return ["whatsapp", "messenger", "instagram"].includes(provider);
+      return ["whatsapp", "messenger", "instagram", "tiktok"].includes(provider);
     if (operation === "sendTyping")
-      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok"].includes(
         provider,
       );
     if (operation === "sendReaction")
       return ["whatsapp", "telegram"].includes(provider);
     if (operation === "sendReply")
-      return ["whatsapp", "messenger", "instagram", "telegram"].includes(
+      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok"].includes(
         provider,
       );
   }

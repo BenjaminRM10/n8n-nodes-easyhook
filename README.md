@@ -2,11 +2,11 @@
 
 Easyhook integration for n8n.
 
-Easyhook is a lightweight multichannel messaging and reviews API for WhatsApp, Telegram,
+Easyhook is a lightweight multichannel messaging and reviews API for WhatsApp, Telegram, TikTok Business,
 Gmail, Outlook, generic IMAP/SMTP email, Mercado Libre, and Google Business Profile. This node focuses on the workflows
 developers normally automate:
 
-- `Message Action` groups cross-channel text and media actions. Use **Send Buttons** for standardized reply or URL buttons on WhatsApp, Messenger, Instagram, and Telegram. Use **Send Quick Replies** when Messenger or Instagram needs more than three text choices.
+- `Message Action` groups cross-channel text and media actions. Use **Send Buttons** for standardized reply buttons on WhatsApp, Messenger, Instagram, Telegram, and TikTok Business. Use **Send Quick Replies** when Messenger or Instagram needs more than three text choices.
 - `Message Control` groups read, typing, reply, and reaction actions and only
   lists channels that support the selected operation.
 - `Email Only` works consistently with Gmail, Outlook, and IMAP/SMTP: send,
@@ -15,8 +15,8 @@ developers normally automate:
 - `WhatsApp Only` groups WhatsApp sends, templates, Flows, and consent.
 - `Review` lists Google reviews, returns the aggregate location rating, and publishes business replies.
 - `Template` lists, synchronizes, checks categories, creates, and deletes templates.
-- Use standard or humanized delivery on WhatsApp, Messenger, Instagram, and Telegram.
-- Schedule supported WhatsApp, Messenger, Instagram, Telegram, and Mercado Libre messages.
+- Use standard or humanized delivery on WhatsApp, Messenger, Instagram, Telegram, and TikTok Business.
+- Schedule supported WhatsApp, Messenger, Instagram, Telegram, Mercado Libre, and TikTok Business messages.
 - Upload organization-wide reusable media and send it later by `media_name`.
 - Download protected incoming media into an n8n binary field.
 - List/sync templates and media
@@ -309,8 +309,8 @@ service and marketing states. Each scope returns `opt_in`, `opt_out`,
 
 - Resource: `Onboarding`
 - Operation: `Get Onboarding URL` or `Send Onboarding Link`
-- Provider: WhatsApp, Messenger, Instagram, Telegram, Gmail, Outlook,
-  IMAP/SMTP, or Mercado Libre
+- Provider: WhatsApp, Messenger, Instagram, Telegram, TikTok Business, Gmail,
+  Outlook, IMAP/SMTP, or Mercado Libre
 - Connection: `WhatsApp Coexistence` or `WhatsApp Business API` when the
   provider is WhatsApp
 - Language: `Spanish` or `English`
@@ -332,7 +332,7 @@ portal; `All events` must be selected alone.
 Useful event scopes:
 
 - `message.*`: incoming messages from the selected provider, including
-  WhatsApp, Messenger, Instagram, Telegram, Gmail, Outlook, and IMAP/SMTP
+  WhatsApp, Messenger, Instagram, Telegram, TikTok Business, Gmail, Outlook, and IMAP/SMTP
 - `status.*`: message delivery/read/failure status
 - `template.*`: template status changes
 - `flow.submission.*`: WhatsApp Flow responses

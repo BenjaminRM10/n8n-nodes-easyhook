@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-easyhook",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "description": "n8n nodes for the Easyhook messaging and reviews API.",
   "license": "MIT",
   "author": {
@@ -22,6 +22,7 @@
     "easyhook",
     "whatsapp",
     "mercadolibre",
+    "tiktok",
     "google-business-profile",
     "google-reviews",
     "messaging",
