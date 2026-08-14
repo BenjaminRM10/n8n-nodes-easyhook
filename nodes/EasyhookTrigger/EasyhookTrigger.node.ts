@@ -13,6 +13,8 @@ import type {
 import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 import { easyhookRequest, readArray } from "../../shared/EasyhookClient";
 
+// Trigger nodes cannot be invoked as AI tools; the current n8n lint rule still requires this property.
+// eslint-disable-next-line @n8n/community-nodes/node-usable-as-tool
 export class EasyhookTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: "Easyhook Trigger",
@@ -109,7 +111,6 @@ export class EasyhookTrigger implements INodeType {
         },
       },
     ],
-    usableAsTool: true,
   };
 
   methods = {
