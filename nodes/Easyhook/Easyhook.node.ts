@@ -1015,7 +1015,7 @@ export class Easyhook implements INodeType {
         ],
         default: "standard",
         description:
-          "For WhatsApp, Messenger, Instagram, and Telegram. Presence indicators are applied when supported; the message still sends if an indicator is unavailable.",
+          "For WhatsApp, Messenger, Instagram, Telegram, and TikTok Business Messaging. Presence indicators are applied when supported; the message still sends if an indicator is unavailable.",
         displayOptions: {
           show: {
             resource: ["message"],
@@ -1544,7 +1544,7 @@ export class Easyhook implements INodeType {
           { name: "Messenger", value: "messenger" },
           { name: "Outlook", value: "outlook" },
           { name: "Telegram", value: "telegram" },
-          { name: "TikTok Business", value: "tiktok" },
+          { name: "TikTok Business Messaging", value: "tiktok" },
           { name: "WhatsApp", value: "whatsapp" },
         ],
         default: "whatsapp",

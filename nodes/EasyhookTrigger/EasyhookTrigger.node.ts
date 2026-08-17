@@ -61,7 +61,7 @@ export class EasyhookTrigger implements INodeType {
           { name: "Outlook", value: "outlook" },
           { name: "Select a Provider", value: "" },
           { name: "Telegram", value: "telegram" },
-          { name: "TikTok Business", value: "tiktok" },
+          { name: "TikTok Business Messaging", value: "tiktok" },
           { name: "WhatsApp", value: "whatsapp" },
         ],
         default: "",
