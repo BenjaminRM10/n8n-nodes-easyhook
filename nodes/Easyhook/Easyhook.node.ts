@@ -683,7 +683,7 @@ export class Easyhook implements INodeType {
         type: "string",
         default: "",
         required: true,
-        description: "Customer WhatsApp number or channel recipient ID",
+        description: "Customer phone number or channel recipient ID",
         displayOptions: {
           show: {
             resource: ["message", "messageControl", "whatsapp", "onboarding"],
@@ -705,6 +705,24 @@ export class Easyhook implements INodeType {
             operation: emailContentOperations,
           },
         },
+      },
+      {
+        displayName: "Channel",
+        name: "messageChannel",
+        type: "options",
+        options: [
+          { name: "Automatic (Unique Sender)", value: "" },
+          { name: "Instagram", value: "instagram" },
+          { name: "Mercado Libre", value: "mercadolibre" },
+          { name: "Messenger", value: "messenger" },
+          { name: "SMS", value: "sms" },
+          { name: "Telegram", value: "telegram" },
+          { name: "TikTok Business Messaging", value: "tiktok" },
+          { name: "WhatsApp", value: "whatsapp" },
+        ],
+        default: "",
+        description: "Leave automatic when From identifies one channel. Select a channel when the same number is connected to SMS and WhatsApp.",
+        displayOptions: { show: { resource: ["message"], operation: ["sendText", "sendMedia"] } },
       },
       {
         displayName: "Body",
@@ -2058,7 +2076,7 @@ function senderSupportsNodeOperation(
     return provider === "whatsapp";
   if (resource === "message") {
     if (operation === "sendInteractive")
-      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok"].includes(
+      return ["whatsapp", "messenger", "instagram", "telegram", "tiktok", "sms"].includes(
         provider,
       );
     if (operation === "sendQuickReplies")
@@ -2074,6 +2092,7 @@ function senderSupportsNodeOperation(
       "telegram",
       "mercadolibre",
       "tiktok",
+      "sms",
     ].includes(provider);
   }
   if (resource === "messageControl") {
@@ -2255,12 +2274,13 @@ async function executeMessageOperation(
       itemIndex,
       "",
     ) as string;
+    const channel = this.getNodeParameter("messageChannel", itemIndex, "") as string;
     if (humanizedDelivery === true || humanizedDelivery === "humanized") {
       return easyhookRequest.call(
         this,
         "POST",
         "/v1/messages/humanized-text",
-        cleanObject({ from, to, body, message_id: messageId }),
+        cleanObject({ from, to, body, message_id: messageId, channel }),
       );
     }
     const at = this.getNodeParameter("at", itemIndex, "") as string;
@@ -2274,6 +2294,7 @@ async function executeMessageOperation(
         body,
         at,
         client_reference: clientReference,
+        channel,
       }),
       undefined,
       at ? requestHeaders : undefined,
@@ -2462,9 +2483,11 @@ async function executeMessageOperation(
     const caption = this.getNodeParameter("caption", itemIndex, "") as string;
     const filename = this.getNodeParameter("filename", itemIndex, "") as string;
     const at = this.getNodeParameter("at", itemIndex, "") as string;
+    const channel = this.getNodeParameter("messageChannel", itemIndex, "") as string;
     const body: IDataObject = cleanObject({
       from,
       to,
+      channel,
       type,
       caption,
       filename,
