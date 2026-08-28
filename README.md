@@ -316,6 +316,20 @@ Use `Get Consent Status` with the same sender and contact to read the current
 service and marketing states. Each scope returns `opt_in`, `opt_out`,
 `pending_opt_out`, or `unknown`; `unknown` is not permission.
 
+### Voice AI Calls
+
+Use `Voice Call > Record Consent` before any automated outreach. Select the
+Easyhook number, destination, opt-in or opt-out state, capture time, source,
+and auditable Evidence JSON. Easyhook stores the customer's evidence but does
+not manufacture consent.
+
+Use `Voice Call > Start AI Call` with the same number and destination after a
+distinct outbound ElevenLabs agent has been assigned in the Easyhook portal.
+Set a maximum duration, optional scalar Context JSON, and a stable Idempotency
+Key. Easyhook enforces consent, frequency limits, number ownership, provider
+capabilities, wallet reservation, and settlement. `Get Call` and `Hang Up`
+operate on the returned Easyhook call ID.
+
 ### Hosted Onboarding
 
 - Resource: `Onboarding`

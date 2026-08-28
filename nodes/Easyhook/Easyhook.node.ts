@@ -40,6 +40,12 @@ const whatsappOperations = [
   "sendConsent",
   "recordConsent",
 ];
+const voiceCallOperations = [
+  "startAiCall",
+  "recordVoiceConsent",
+  "getCall",
+  "hangupCall",
+];
 const recipientMessageOperations = [
   "sendText",
   "sendMedia",
@@ -185,9 +191,24 @@ export class Easyhook implements INodeType {
           { name: "Onboarding", value: "onboarding" },
           { name: "Review", value: "review" },
           { name: "Template", value: "template" },
+          { name: "Voice Call", value: "voiceCall" },
           { name: "WhatsApp Only", value: "whatsapp" },
         ],
         default: "message",
+      },
+      {
+        displayName: "Operation",
+        name: "operation",
+        type: "options",
+        noDataExpression: true,
+        displayOptions: { show: { resource: ["voiceCall"] } },
+        options: [
+          { name: "Get Call", value: "getCall", action: "Get a voice call" },
+          { name: "Hang Up", value: "hangupCall", action: "Hang up a voice call" },
+          { name: "Record Consent", value: "recordVoiceConsent", action: "Record voice consent" },
+          { name: "Start AI Call", value: "startAiCall", action: "Start a consented AI voice call" },
+        ],
+        default: "startAiCall",
       },
       {
         displayName: "Operation",
@@ -647,7 +668,7 @@ export class Easyhook implements INodeType {
           'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         displayOptions: {
           show: {
-            resource: ["message", "messageControl", "whatsapp", "template", "onboarding"],
+            resource: ["message", "messageControl", "whatsapp", "template", "onboarding", "voiceCall"],
             operation: [
               ...messageOperations,
               ...messageControlOperations,
@@ -655,6 +676,8 @@ export class Easyhook implements INodeType {
               "sendOnboarding",
               "create",
               "sync",
+              "startAiCall",
+              "recordVoiceConsent",
             ],
           },
         },
@@ -686,8 +709,8 @@ export class Easyhook implements INodeType {
         description: "Customer phone number or channel recipient ID",
         displayOptions: {
           show: {
-            resource: ["message", "messageControl", "whatsapp", "onboarding"],
-            operation: recipientMessageOperations,
+            resource: ["message", "messageControl", "whatsapp", "onboarding", "voiceCall"],
+            operation: [...recipientMessageOperations, "startAiCall", "recordVoiceConsent"],
           },
         },
       },
@@ -1765,6 +1788,80 @@ export class Easyhook implements INodeType {
         },
       },
       {
+        displayName: "Call ID",
+        name: "callId",
+        type: "string",
+        default: "",
+        required: true,
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["getCall", "hangupCall"] } },
+      },
+      {
+        displayName: "Maximum Duration (Seconds)",
+        name: "maxDurationSeconds",
+        type: "number",
+        typeOptions: { minValue: 30, maxValue: 14400 },
+        default: 900,
+        required: true,
+        description: "Easyhook reserves this maximum and refunds unused voice time after settlement",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["startAiCall"] } },
+      },
+      {
+        displayName: "Context (JSON)",
+        name: "voiceCallContext",
+        type: "json",
+        default: "{}",
+        description: "Optional scalar values passed to the configured outbound ElevenLabs agent",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["startAiCall"] } },
+      },
+      {
+        displayName: "Consent",
+        name: "voiceConsentStatus",
+        type: "options",
+        options: [
+          { name: "Opt In", value: "opt_in" },
+          { name: "Opt Out", value: "opt_out" },
+        ],
+        default: "opt_in",
+        required: true,
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["recordVoiceConsent"] } },
+      },
+      {
+        displayName: "Captured At",
+        name: "voiceConsentCapturedAt",
+        type: "dateTime",
+        default: "",
+        required: true,
+        description: "When the contact gave or withdrew permission",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["recordVoiceConsent"] } },
+      },
+      {
+        displayName: "Consent Source",
+        name: "voiceConsentSource",
+        type: "string",
+        default: "crm",
+        required: true,
+        description: "Where permission was collected, for example crm or customer_form",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["recordVoiceConsent"] } },
+      },
+      {
+        displayName: "Evidence (JSON)",
+        name: "voiceConsentEvidence",
+        type: "json",
+        default: "{}",
+        required: true,
+        description: "Auditable evidence supplied by the customer; Easyhook does not manufacture consent",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["recordVoiceConsent"] } },
+      },
+      {
+        displayName: "Idempotency Key",
+        name: "voiceCallIdempotencyKey",
+        type: "string",
+        default: "",
+        required: true,
+        description: "Stable key reused when this operation is retried",
+        displayOptions: { show: { resource: ["voiceCall"], operation: ["startAiCall", "recordVoiceConsent", "hangupCall"] } },
+      },
+      {
         displayName: "Options",
         name: "options",
         type: "collection",
@@ -2071,6 +2168,7 @@ function senderSupportsNodeOperation(
   const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
   if (resource === "comment") return ["facebook_comments", "instagram_comments"].includes(provider);
   if (resource === "email") return emailProviders.has(provider);
+  if (resource === "voiceCall") return provider === "sms";
   if (resource === "onboarding") return provider === "whatsapp";
   if (resource === "whatsapp" || resource === "template")
     return provider === "whatsapp";
@@ -2137,11 +2235,53 @@ async function executeOperation(
     return executeCommentOperation.call(this, operation, itemIndex);
   if (resource === "scheduledMessage")
     return executeScheduledMessageOperation.call(this, operation, itemIndex);
+  if (resource === "voiceCall")
+    return executeVoiceCallOperation.call(this, operation, itemIndex);
   throw new NodeOperationError(
     this.getNode(),
     `Unsupported resource: ${resource}`,
     { itemIndex },
   );
+}
+
+async function executeVoiceCallOperation(
+  this: IExecuteFunctions,
+  operation: string,
+  itemIndex: number,
+): Promise<IDataObject> {
+  if (!voiceCallOperations.includes(operation)) {
+    throw new NodeOperationError(this.getNode(), `Unsupported voice call operation: ${operation}`, { itemIndex });
+  }
+  const callId = this.getNodeParameter("callId", itemIndex, "") as string;
+  if (operation === "getCall") {
+    return easyhookRequest.call(this, "GET", `/v1/calls/${encodeURIComponent(callId)}`);
+  }
+  const idempotencyKey = this.getNodeParameter("voiceCallIdempotencyKey", itemIndex, "") as string;
+  const headers = { "Idempotency-Key": idempotencyKey };
+  if (operation === "hangupCall") {
+    return easyhookRequest.call(this, "POST", `/v1/calls/${encodeURIComponent(callId)}/actions/hangup`, {}, undefined, headers);
+  }
+  const from = this.getNodeParameter("from", itemIndex) as string;
+  const to = this.getNodeParameter("to", itemIndex) as string;
+  if (operation === "recordVoiceConsent") {
+    return easyhookRequest.call(this, "POST", "/v1/consent", {
+      channel: "voice",
+      from,
+      to,
+      status: this.getNodeParameter("voiceConsentStatus", itemIndex) as string,
+      source: this.getNodeParameter("voiceConsentSource", itemIndex) as string,
+      captured_at: this.getNodeParameter("voiceConsentCapturedAt", itemIndex) as string,
+      evidence: parseJsonObject(this.getNodeParameter("voiceConsentEvidence", itemIndex) as string, this, itemIndex, "Evidence JSON"),
+    }, undefined, headers);
+  }
+  return easyhookRequest.call(this, "POST", "/v1/calls", {
+    channel: "phone",
+    handler: "ai",
+    from,
+    to,
+    max_duration_seconds: this.getNodeParameter("maxDurationSeconds", itemIndex) as number,
+    context: parseJsonObject(this.getNodeParameter("voiceCallContext", itemIndex) as string, this, itemIndex, "Context JSON"),
+  }, undefined, headers);
 }
 
 async function executeCommentOperation(

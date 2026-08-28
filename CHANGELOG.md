@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.39
+
+- Add a provider-neutral `Voice Call` resource for recording auditable voice
+  consent, starting outbound ElevenLabs calls, reading call state, and hanging
+  up.
+- Require stable idempotency keys for paid or retryable voice commands while
+  preserving Easyhook wallet, consent, and outreach limits.
+
 ## 0.2.35
 
 - Separate Facebook and Instagram public-comment providers from Messenger and
