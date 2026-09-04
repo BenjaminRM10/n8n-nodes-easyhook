@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.40
+
+- Keep the node catalog aligned with Easyhook's production contract by
+  removing unvalidated review and public-comment resources, onboarding choices,
+  and trigger providers.
+
 ## 0.2.39
 
 - Add a provider-neutral `Voice Call` resource for recording auditable voice
@@ -7,13 +13,6 @@
   up.
 - Require stable idempotency keys for paid or retryable voice commands while
   preserving Easyhook wallet, consent, and outreach limits.
-
-## 0.2.35
-
-- Separate Facebook and Instagram public-comment providers from Messenger and
-  Instagram Direct connections.
-- Add the dedicated comment providers to Trigger, onboarding, and connected
-  account selectors while keeping `comment.*` normalized.
 
 ## 0.2.31
 

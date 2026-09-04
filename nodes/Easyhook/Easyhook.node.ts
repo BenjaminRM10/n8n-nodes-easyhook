@@ -183,13 +183,11 @@ export class Easyhook implements INodeType {
             name: "Cancel Scheduled Message",
             value: "scheduledMessage",
           },
-          { name: "Comment", value: "comment" },
           { name: "Email Only", value: "email" },
           { name: "Media", value: "media" },
           { name: "Message Action", value: "message" },
           { name: "Message Control", value: "messageControl" },
           { name: "Onboarding", value: "onboarding" },
-          { name: "Review", value: "review" },
           { name: "Template", value: "template" },
           { name: "Voice Call", value: "voiceCall" },
           { name: "WhatsApp Only", value: "whatsapp" },
@@ -209,43 +207,6 @@ export class Easyhook implements INodeType {
           { name: "Start AI Call", value: "startAiCall", action: "Start a consented AI voice call" },
         ],
         default: "startAiCall",
-      },
-      {
-        displayName: "Operation",
-        name: "operation",
-        type: "options",
-        noDataExpression: true,
-        displayOptions: { show: { resource: ["comment"] } },
-        options: [
-          { name: "List", value: "listComments", action: "List comments on a post or media object" },
-          { name: "Reply", value: "replyComment", action: "Reply publicly to a comment" },
-        ],
-        default: "listComments",
-      },
-      {
-        displayName: "Operation",
-        name: "operation",
-        type: "options",
-        noDataExpression: true,
-        displayOptions: { show: { resource: ["review"] } },
-        options: [
-          {
-            name: "Get Rating",
-            value: "getReviewRating",
-            action: "Get the location rating",
-          },
-          {
-            name: "List Reviews",
-            value: "listReviews",
-            action: "List reviews for a location",
-          },
-          {
-            name: "Reply to Review",
-            value: "replyToReview",
-            action: "Reply publicly to a review",
-          },
-        ],
-        default: "listReviews",
       },
       {
         displayName: "Operation",
@@ -529,130 +490,6 @@ export class Easyhook implements INodeType {
           },
         ],
         default: "cancel",
-      },
-      {
-        displayName: "Channel Name or ID",
-        name: "commentFrom",
-        type: "options",
-        typeOptions: { loadOptionsMethod: "getSenders", loadOptionsDependsOn: ["resource", "operation"] },
-        default: "",
-        required: true,
-        description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-        displayOptions: { show: { resource: ["comment"] } },
-      },
-      {
-        displayName: "Post or Media ID",
-        name: "commentObjectId",
-        type: "string",
-        default: "",
-        required: true,
-        description: "Facebook post ID or Instagram media ID from the incoming comment event",
-        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
-      },
-      {
-        displayName: "Comment ID",
-        name: "socialCommentId",
-        type: "string",
-        default: "",
-        required: true,
-        description: "ID of the incoming Easyhook comment event",
-        displayOptions: { show: { resource: ["comment"], operation: ["replyComment"] } },
-      },
-      {
-        displayName: "Reply",
-        name: "commentReply",
-        type: "string",
-        typeOptions: { rows: 3 },
-        default: "",
-        required: true,
-        displayOptions: { show: { resource: ["comment"], operation: ["replyComment"] } },
-      },
-      {
-        displayName: "Limit",
-        name: "commentLimit",
-        type: "number",
-        typeOptions: { minValue: 1, maxValue: 100 },
-        default: 50,
-        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
-      },
-      {
-        displayName: "After Cursor",
-        name: "commentAfter",
-        type: "string",
-        default: "",
-        description: "Optional paging.after cursor returned by the previous request",
-        displayOptions: { show: { resource: ["comment"], operation: ["listComments"] } },
-      },
-      {
-        displayName: "Location Name or ID",
-        name: "reviewLocation",
-        type: "options",
-        typeOptions: {
-          loadOptionsMethod: "getReviewLocations",
-        },
-        default: "",
-        required: true,
-        description:
-          'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-        displayOptions: {
-          show: {
-            resource: ["review"],
-          },
-        },
-      },
-      {
-        displayName: "Review ID",
-        name: "reviewId",
-        type: "string",
-        default: "",
-        required: true,
-        displayOptions: {
-          show: {
-            resource: ["review"],
-            operation: ["replyToReview"],
-          },
-        },
-      },
-      {
-        displayName: "Reply",
-        name: "reviewReply",
-        type: "string",
-        typeOptions: { rows: 4 },
-        default: "",
-        required: true,
-        description: "Public reply that will appear on the Google Business Profile",
-        displayOptions: {
-          show: {
-            resource: ["review"],
-            operation: ["replyToReview"],
-          },
-        },
-      },
-      {
-        displayName: "Page Size",
-        name: "reviewPageSize",
-        type: "number",
-        typeOptions: { minValue: 1, maxValue: 50 },
-        default: 20,
-        displayOptions: {
-          show: {
-            resource: ["review"],
-            operation: ["listReviews"],
-          },
-        },
-      },
-      {
-        displayName: "Next Page Cursor",
-        name: "reviewPageCursor",
-        type: "string",
-        default: "",
-        description: "Optional next page cursor returned by the previous request",
-        displayOptions: {
-          show: {
-            resource: ["review"],
-            operation: ["listReviews"],
-          },
-        },
       },
       {
         displayName: "Channel Name or ID",
@@ -1577,10 +1414,8 @@ export class Easyhook implements INodeType {
         type: "options",
         options: [
           { name: "Email (IMAP/SMTP)", value: "imap_smtp" },
-          { name: "Facebook Comments", value: "facebook_comments" },
           { name: "Gmail", value: "gmail" },
           { name: "Instagram", value: "instagram" },
-          { name: "Instagram Comments", value: "instagram_comments" },
           { name: "Mercado Libre", value: "mercadolibre" },
           { name: "Messenger", value: "messenger" },
           { name: "Outlook", value: "outlook" },
@@ -1954,18 +1789,6 @@ export class Easyhook implements INodeType {
           return [{ name, value }];
         });
       },
-      async getReviewLocations(
-        this: ILoadOptionsFunctions,
-      ): Promise<INodePropertyOptions[]> {
-        const response = await easyhookRequest.call(this, "GET", "/v1/senders");
-        return readArray(response, "senders").flatMap((option) => {
-          if (option.provider !== "google_business_profile") return [];
-          const name = typeof option.name === "string" ? option.name : "";
-          const value =
-            typeof option.account_id === "string" ? option.account_id : "";
-          return name && value ? [{ name, value }] : [];
-        });
-      },
       async getMedia(
         this: ILoadOptionsFunctions,
       ): Promise<INodePropertyOptions[]> {
@@ -2166,7 +1989,6 @@ function senderSupportsNodeOperation(
   operation: string,
 ): boolean {
   const emailProviders = new Set(["gmail", "outlook", "imap_smtp"]);
-  if (resource === "comment") return ["facebook_comments", "instagram_comments"].includes(provider);
   if (resource === "email") return emailProviders.has(provider);
   if (resource === "voiceCall") return provider === "sms";
   if (resource === "onboarding") return provider === "whatsapp";
@@ -2229,10 +2051,6 @@ async function executeOperation(
     return executeMediaOperation.call(this, operation, itemIndex);
   if (resource === "template")
     return executeTemplateOperation.call(this, operation, itemIndex);
-  if (resource === "review")
-    return executeReviewOperation.call(this, operation, itemIndex);
-  if (resource === "comment")
-    return executeCommentOperation.call(this, operation, itemIndex);
   if (resource === "scheduledMessage")
     return executeScheduledMessageOperation.call(this, operation, itemIndex);
   if (resource === "voiceCall")
@@ -2282,77 +2100,6 @@ async function executeVoiceCallOperation(
     max_duration_seconds: this.getNodeParameter("maxDurationSeconds", itemIndex) as number,
     context: parseJsonObject(this.getNodeParameter("voiceCallContext", itemIndex) as string, this, itemIndex, "Context JSON"),
   }, undefined, headers);
-}
-
-async function executeCommentOperation(
-  this: IExecuteFunctions,
-  operation: string,
-  itemIndex: number,
-): Promise<IDataObject> {
-  const from = this.getNodeParameter("commentFrom", itemIndex) as string;
-  if (operation === "listComments") {
-    return easyhookRequest.call(this, "GET", "/v1/comments", undefined, {
-      from,
-      object_id: this.getNodeParameter("commentObjectId", itemIndex) as string,
-      limit: this.getNodeParameter("commentLimit", itemIndex, 50) as number,
-      after: this.getNodeParameter("commentAfter", itemIndex, "") as string,
-    });
-  }
-  if (operation === "replyComment") {
-    const commentId = this.getNodeParameter("socialCommentId", itemIndex) as string;
-    return easyhookRequest.call(this, "POST", `/v1/comments/${encodeURIComponent(commentId)}/reply`, {
-      from,
-      message: this.getNodeParameter("commentReply", itemIndex) as string,
-    });
-  }
-  throw new NodeOperationError(this.getNode(), `Unsupported comment operation: ${operation}`, { itemIndex });
-}
-
-async function executeReviewOperation(
-  this: IExecuteFunctions,
-  operation: string,
-  itemIndex: number,
-): Promise<IDataObject> {
-  const from = this.getNodeParameter("reviewLocation", itemIndex) as string;
-  if (operation === "getReviewRating") {
-    return easyhookRequest.call(
-      this,
-      "GET",
-      "/v1/reviews/summary",
-      undefined,
-      { from },
-    );
-  }
-  if (operation === "listReviews") {
-    return easyhookRequest.call(
-      this,
-      "GET",
-      "/v1/reviews",
-      undefined,
-      cleanObject({
-        from,
-        page_size: this.getNodeParameter("reviewPageSize", itemIndex, 20) as number,
-        page_token: this.getNodeParameter("reviewPageCursor", itemIndex, "") as string,
-      }),
-    );
-  }
-  if (operation === "replyToReview") {
-    const reviewId = this.getNodeParameter("reviewId", itemIndex) as string;
-    return easyhookRequest.call(
-      this,
-      "PUT",
-      `/v1/reviews/${encodeURIComponent(reviewId)}/reply`,
-      {
-        from,
-        comment: this.getNodeParameter("reviewReply", itemIndex) as string,
-      },
-    );
-  }
-  throw new NodeOperationError(
-    this.getNode(),
-    `Unsupported review operation: ${operation}`,
-    { itemIndex },
-  );
 }
 
 async function executeMessageOperation(
