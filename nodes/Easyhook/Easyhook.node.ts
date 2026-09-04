@@ -1454,6 +1454,7 @@ export class Easyhook implements INodeType {
         type: "options",
         options: [
           { name: "English", value: "en" },
+          { name: "Portuguese (Brazil)", value: "pt-BR" },
           { name: "Spanish", value: "es" },
         ],
         default: "es",
