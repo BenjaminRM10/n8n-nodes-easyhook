@@ -1,5 +1,14 @@
 # n8n-nodes-easyhook
 
+## Error diagnostics
+
+Easyhook API failures retain their error code and request ID in the node error.
+When continuing after an error, output includes `error`, `error_code`,
+`request_id`, `http_status`, `retryable`, `delivery_state`, and `required_action`
+when supplied. Use these fields to route failures; do not treat a failed send
+as delivered. HTTP credentials and arbitrary provider payloads are not copied
+into these diagnostic fields.
+
 Easyhook integration for n8n.
 
 Easyhook is a lightweight multichannel messaging API for WhatsApp, Messenger,

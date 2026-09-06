@@ -38,6 +38,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test runtime error handling
+        run: npm test
+
       - name: Verify tag matches package version
         run: test "${GITHUB_REF_NAME}" = "v$(node -p "require('./package.json').version")"
 

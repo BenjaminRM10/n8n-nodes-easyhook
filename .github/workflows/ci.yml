@@ -34,5 +34,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test runtime error handling
+        run: npm test
+
       - name: Check package contents
         run: npm pack --dry-run

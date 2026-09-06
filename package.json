@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-easyhook",
-  "version": "0.2.41",
+  "version": "0.2.42",
   "description": "n8n nodes for the Easyhook multichannel messaging API.",
   "license": "MIT",
   "author": {
@@ -32,6 +32,7 @@
     "README.md"
   ],
   "scripts": {
+    "test": "node --test runtime-errors.test.cjs",
     "build": "n8n-node build",
     "build:watch": "tsc --watch",
     "dev": "n8n-node dev",

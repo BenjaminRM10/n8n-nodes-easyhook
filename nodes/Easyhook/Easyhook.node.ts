@@ -17,6 +17,7 @@ import {
 import {
   cleanObject,
   easyhookDownload,
+  easyhookErrorOutput,
   easyhookRequest,
   readArray,
 } from "../../shared/EasyhookClient";
@@ -1958,9 +1959,7 @@ export class Easyhook implements INodeType {
       } catch (error) {
         if (this.continueOnFail()) {
           returnData.push({
-            json: {
-              error: error instanceof Error ? error.message : String(error),
-            },
+            json: easyhookErrorOutput(error),
             pairedItem: { item: i },
           });
           continue;
