@@ -75,7 +75,12 @@ n8n registers its Production URL in Easyhook automatically and stores the HMAC s
 
 WhatsApp uses the same three levels as the Easyhook portal: **Entire Organization → WABA → WhatsApp Number**. Selecting a WABA receives matching events from all numbers connected to it. Meta Business Portfolios stay internal and never appear as n8n scopes.
 
-The trigger outputs the normalized Easyhook webhook JSON directly.
+The trigger outputs the normalized Easyhook webhook JSON directly. When the
+provider includes a quoted-message reference, keep
+`message.reply_to.message_id` to correlate the reply with the original message;
+this works the same way for WhatsApp, Instagram, Telegram, TikTok, and Easyhook
+Live Chat. Email keeps RFC references in `message.in_reply_to` and
+`message.references`.
 
 ### Send Text
 
